@@ -3,11 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walkable Campus</title>
+<title>Dynamic Campus</title>
 
 <style>
 body { margin:0; overflow:hidden; }
-
 #info {
   position:fixed;
   top:10px;
@@ -17,28 +16,6 @@ body { margin:0; overflow:hidden; }
   padding:10px;
   font-family:Arial;
   z-index:10;
-}
-
-/* optional mobile joystick */
-#joystick {
-  position: fixed;
-  bottom: 30px;
-  left: 30px;
-  width: 120px;
-  height: 120px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 50%;
-  touch-action: none;
-}
-
-#stick {
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 50%;
-  top: 35px;
-  left: 35px;
 }
 </style>
 
@@ -50,15 +27,11 @@ body { margin:0; overflow:hidden; }
   }
 }
 </script>
-
 </head>
 
 <body>
 
-<div id="info">Click to walk (WASD + Mouse)</div>
-
-<!-- MOBILE JOYSTICK -->
-<div id="joystick"><div id="stick"></div></div>
+<div id="info">Dynamic Campus Loading</div>
 
 <script type="module">
 
@@ -66,228 +39,125 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 
-// =====================
-// SCENE
-// =====================
+/* ================= SCENE ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xeaf1f7);
-scene.fog = null;
 
-// =====================
-// CAMERA (REAL EYE HEIGHT FIX)
-// =====================
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  5000
-);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 5000);
+camera.position.set(0, 5, 10);
 
-// realistic walking height
-camera.position.set(0, 2, 10);
-
-// =====================
-// RENDERER
-// =====================
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// =====================
-// CONTROLS
-// =====================
+/* ================= CONTROLS ================= */
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
-
 document.addEventListener("click", () => controls.lock());
 
-// =====================
-// LIGHTING
-// =====================
-const hemi = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 0.9);
-scene.add(hemi);
+/* ================= LIGHT ================= */
+scene.add(new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1));
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-sun.position.set(100, 150, 100);
-sun.castShadow = true;
+const sun = new THREE.DirectionalLight(0xffffff, 2);
+sun.position.set(50, 100, 50);
 scene.add(sun);
 
-// =====================
-// GROUND
-// =====================
+/* ================= GROUND ================= */
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshStandardMaterial({
-    color: 0xb0b0b0,
-    roughness: 1
-  })
+  new THREE.MeshStandardMaterial({ color: 0xb0b0b0 })
 );
-
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
+ground.rotation.x = -Math.PI/2;
 scene.add(ground);
 
-// =====================
-// ROAD
-// =====================
-const road = new THREE.Mesh(
-  new THREE.PlaneGeometry(120, 12),
-  new THREE.MeshStandardMaterial({
-    color: 0x6f6f6f,
-    roughness: 1
-  })
-);
-
-road.rotation.x = -Math.PI / 2;
-road.position.y = 0.01;
-scene.add(road);
-
-// =====================
-// MOVEMENT (SMOOTH + ARCHVIZ STYLE)
-// =====================
+/* ================= MOVEMENT ================= */
 const keys = {};
-let velocity = new THREE.Vector3();
-
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
 
-function movePlayer() {
-
-  const speed = 0.06; // slower = more realistic walking
-  const damping = 0.85;
-
-  let dir = new THREE.Vector3();
-
-  if (keys["KeyW"]) dir.z -= 1;
-  if (keys["KeyS"]) dir.z += 1;
-  if (keys["KeyA"]) dir.x -= 1;
-  if (keys["KeyD"]) dir.x += 1;
-
-  // normalize
-  if (dir.length() > 0) dir.normalize();
-
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
-  forward.y = 0;
-  forward.normalize();
-
-  const right = new THREE.Vector3();
-  right.crossVectors(forward, new THREE.Vector3(0,1,0));
-
-  velocity.x = (right.x * dir.x + forward.x * dir.z) * speed;
-  velocity.z = (right.z * dir.x + forward.z * dir.z) * speed;
-
-  camera.position.x += velocity.x;
-  camera.position.z += velocity.z;
-
-  velocity.multiplyScalar(damping);
+function movePlayer(){
+  const speed = 0.2;
+  if(keys["KeyW"]) controls.moveForward(speed);
+  if(keys["KeyS"]) controls.moveForward(-speed);
+  if(keys["KeyA"]) controls.moveRight(-speed);
+  if(keys["KeyD"]) controls.moveRight(speed);
 }
 
-// =====================
-// MOBILE JOYSTICK
-// =====================
-const joystick = document.getElementById("joystick");
-const stick = document.getElementById("stick");
-
-let joyX = 0;
-let joyY = 0;
-
-joystick.addEventListener("touchmove", (e) => {
-  const t = e.touches[0];
-  joyX = (t.clientX - 60) / 40;
-  joyY = (t.clientY - 60) / 40;
-
-  joyX = Math.max(-1, Math.min(1, joyX));
-  joyY = Math.max(-1, Math.min(1, joyY));
-
-  stick.style.transform = `translate(${joyX * 30}px, ${joyY * 30}px)`;
-});
-
-joystick.addEventListener("touchend", () => {
-  joyX = 0;
-  joyY = 0;
-  stick.style.transform = "translate(0px,0px)";
-});
-
-// =====================
-// MODEL LOADER
-// =====================
+/* ================= LOADERS ================= */
 const loader = new GLTFLoader();
+const loaded = {};
 
-function loadBuilding(url, x, z) {
+/* ================= BASE WORLD (STATIC) ================= */
+loader.load("./models/overall.glb", (gltf) => {
+  scene.add(gltf.scene);
+  document.getElementById("info").innerHTML = "Base loaded ✔";
+});
 
-  loader.load(url, (gltf) => {
+/* ================= DYNAMIC BUILDINGS ================= */
+const buildings = [
+  {
+    name: "guardhouse",
+    url: "./models/guardhouse.glb",
+    position: { x: -35, z: 0 },
+    range: 60
+  },
+  {
+    name: "hallway",
+    url: "./models/hallway.glb",
+    position: { x: 35, z: 0 },
+    range: 60
+  }
+];
 
+function loadBuilding(b){
+  if(loaded[b.name]) return;
+
+  loader.load(b.url, (gltf) => {
     const model = gltf.scene;
-
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-
-        if (child.material) {
-          child.material.metalness = 0;
-          child.material.roughness = 1;
-        }
-      }
-    });
-
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-
-    const scale = 25 / size.y;
-    model.scale.set(scale, scale, scale);
-
-    const box2 = new THREE.Box3().setFromObject(model);
-    model.position.y -= box2.min.y;
-
-    model.position.x = x;
-    model.position.z = z;
-
+    model.position.set(b.position.x, 0, b.position.z);
     scene.add(model);
-
+    loaded[b.name] = model;
   });
-
 }
 
-// =====================
-// CAMPUS
-// =====================
-loadBuilding("./models/guardhouse.glb", -35, 0);
-loadBuilding("./models/hallway.glb", 35, 0);
+function unloadBuilding(b){
+  if(!loaded[b.name]) return;
 
-// =====================
-// LOOP
-// =====================
-function animate() {
+  scene.remove(loaded[b.name]);
+  delete loaded[b.name];
+}
+
+/* ================= DISTANCE CHECK ================= */
+function update(player){
+  buildings.forEach(b => {
+    const dist = Math.hypot(
+      player.x - b.position.x,
+      player.z - b.position.z
+    );
+
+    if(dist < b.range) loadBuilding(b);
+    else unloadBuilding(b);
+  });
+}
+
+/* ================= LOOP ================= */
+function animate(){
   requestAnimationFrame(animate);
 
   movePlayer();
 
-  // mobile movement
-  camera.position.x += joyX * 0.03;
-  camera.position.z += joyY * 0.03;
+  const pos = controls.getObject().position;
+  update(pos);
 
   renderer.render(scene, camera);
 }
-
 animate();
 
-// =====================
-// RESIZE
-// =====================
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+/* ================= RESIZE ================= */
+window.addEventListener("resize", ()=>{
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 
 </script>
