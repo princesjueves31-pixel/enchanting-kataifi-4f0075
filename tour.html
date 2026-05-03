@@ -7,6 +7,7 @@
 
 <style>
 body { margin:0; overflow:hidden; }
+
 #info {
   position:fixed;
   top:10px;
@@ -31,7 +32,7 @@ body { margin:0; overflow:hidden; }
 
 <body>
 
-<div id="info">Dynamic Campus Loading</div>
+<div id="info">Loading Campus...</div>
 
 <script type="module">
 
@@ -43,16 +44,25 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xeaf1f7);
 
-const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 5000);
-camera.position.set(0, 5, 10);
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  5000
+);
+
+// ✔ FIX: camera starts high so you SEE overall.glb
+camera.position.set(0, 80, 120);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 /* ================= CONTROLS ================= */
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
+
 document.addEventListener("click", () => controls.lock());
 
 /* ================= LIGHT ================= */
@@ -67,7 +77,7 @@ const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(500, 500),
   new THREE.MeshStandardMaterial({ color: 0xb0b0b0 })
 );
-ground.rotation.x = -Math.PI/2;
+ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 /* ================= MOVEMENT ================= */
@@ -83,32 +93,61 @@ function movePlayer(){
   if(keys["KeyD"]) controls.moveRight(speed);
 }
 
-/* ================= LOADERS ================= */
+/* ================= LOADER ================= */
 const loader = new GLTFLoader();
 const loaded = {};
 
-/* ================= BASE WORLD (STATIC) ================= */
+/* ================= BASE WORLD (OVERALL GLB) ================= */
 loader.load("./models/overall.glb", (gltf) => {
-  scene.add(gltf.scene);
-  document.getElementById("info").innerHTML = "Base loaded ✔";
+
+  const model = gltf.scene;
+
+  // center model
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.sub(center);
+
+  // scale fix
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  const max = Math.max(size.x, size.y, size.z);
+  const scale = 80 / max;
+
+  model.scale.set(scale, scale, scale);
+
+  // ground align
+  const box2 = new THREE.Box3().setFromObject(model);
+  model.position.y -= box2.min.y;
+
+  scene.add(model);
+
+  document.getElementById("info").innerHTML = "Campus Loaded ✔";
 });
 
-/* ================= DYNAMIC BUILDINGS ================= */
+/* ================= START DELAY (PREVENT EARLY POP-IN) ================= */
+let started = false;
+setTimeout(() => {
+  started = true;
+}, 3000);
+
+/* ================= BUILDINGS ================= */
 const buildings = [
   {
     name: "guardhouse",
     url: "./models/guardhouse.glb",
     position: { x: -35, z: 0 },
-    range: 60
+    range: 120
   },
   {
     name: "hallway",
     url: "./models/hallway.glb",
     position: { x: 35, z: 0 },
-    range: 60
+    range: 120
   }
 ];
 
+/* ================= LOAD / UNLOAD ================= */
 function loadBuilding(b){
   if(loaded[b.name]) return;
 
@@ -129,7 +168,11 @@ function unloadBuilding(b){
 
 /* ================= DISTANCE CHECK ================= */
 function update(player){
+
+  if(!started) return;
+
   buildings.forEach(b => {
+
     const dist = Math.hypot(
       player.x - b.position.x,
       player.z - b.position.z
@@ -137,7 +180,9 @@ function update(player){
 
     if(dist < b.range) loadBuilding(b);
     else unloadBuilding(b);
+
   });
+
 }
 
 /* ================= LOOP ================= */
@@ -154,10 +199,10 @@ function animate(){
 animate();
 
 /* ================= RESIZE ================= */
-window.addEventListener("resize", ()=>{
-  camera.aspect = innerWidth/innerHeight;
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 </script>
