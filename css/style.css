@@ -1,0 +1,92 @@
+body {
+  margin: 0;
+  font-family: Poppins, Arial, sans-serif;
+  background: #f4f6fb;
+}
+
+/* HEADER */
+header {
+  background: #764ba2;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* NAV */
+nav a {
+  color: white;
+  margin-left: 15px;
+  text-decoration: none;
+}
+
+/* MAIN CONTAINER */
+.container {
+  padding: 20px;
+}
+
+/* CARDS GRID */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+/* CARD DESIGN */
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: black;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px) scale(1.03);
+}
+
+/* ========================= */
+/* 📱 RESPONSIVE MOBILE FIX */
+/* ========================= */
+
+@media (max-width: 768px){
+
+  /* HEADER STACK */
+  header {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  /* NAV WRAP */
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  nav a {
+    margin: 5px;
+    font-size: 14px;
+  }
+
+  /* REDUCE PADDING */
+  .container {
+    padding: 10px;
+  }
+
+  /* CARDS STACK ON MOBILE */
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  /* BETTER TOUCH UI */
+  .card {
+    padding: 15px;
+    font-size: 14px;
+  }
+}
