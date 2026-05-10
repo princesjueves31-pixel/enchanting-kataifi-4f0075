@@ -1,293 +1,575 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walkable Campus</title>
+<title>Campus Tour Fixed</title>
 
 <style>
-body { margin:0; overflow:hidden; }
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial;
+  touch-action: none;
+  user-select: none;
+}
 
 #info {
-  position:fixed;
-  top:10px;
-  left:10px;
-  background:rgba(0,0,0,0.6);
-  color:white;
-  padding:10px;
-  font-family:Arial;
-  z-index:10;
-}
-
-/* optional mobile joystick */
-#joystick {
   position: fixed;
-  bottom: 30px;
-  left: 30px;
-  width: 120px;
-  height: 120px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 50%;
-  touch-action: none;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  z-index: 10;
 }
 
-#stick {
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border: 1px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+#touchControls {
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 12;
+}
+
+#movePad {
   position: absolute;
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 50%;
-  top: 35px;
-  left: 35px;
+  left: 18px;
+  bottom: 18px;
+  width: 142px;
+  height: 142px;
+  pointer-events: auto;
 }
-</style>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+#movePad button {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+#movePad button:active {
+  background: rgba(37,99,235,0.85);
+}
+
+#moveForward { left: 49px; top: 0; }
+#moveLeft { left: 0; top: 49px; }
+#moveBack { left: 49px; top: 98px; }
+#moveRight { left: 98px; top: 49px; }
+
+#lookHint {
+  position: absolute;
+  right: 18px;
+  bottom: 24px;
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  #touchControls {
+    display: block;
   }
 }
-</script>
+</style>
 
 </head>
 
 <body>
 
-<div id="info">Click to walk (WASD + Mouse)</div>
-
-<!-- MOBILE JOYSTICK -->
-<div id="joystick"><div id="stick"></div></div>
+<div id="info">Loading...</div>
+<div id="crosshair"></div>
+<div id="touchControls">
+  <div id="movePad">
+    <button id="moveForward" data-key="KeyW" type="button" aria-label="Move forward">&uarr;</button>
+    <button id="moveLeft" data-key="KeyA" type="button" aria-label="Move left">&larr;</button>
+    <button id="moveBack" data-key="KeyS" type="button" aria-label="Move backward">&darr;</button>
+    <button id="moveRight" data-key="KeyD" type="button" aria-label="Move right">&rarr;</button>
+  </div>
+  <div id="lookHint">Drag here<br>to look</div>
+</div>
 
 <script type="module">
 
-import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+/* =========================
+LOCAL IMPORTS
+========================= */
 
-// =====================
-// SCENE
-// =====================
+import * as THREE from "./vendor/three/three.module.js";
+import { GLTFLoader } from "./vendor/three/GLTFLoader.js";
+import { DRACOLoader } from "./vendor/three/DRACOLoader.js";
+import { PointerLockControls } from "./vendor/three/PointerLockControls.js";
+
+/* =========================
+SCENE
+========================= */
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeaf1f7);
-scene.fog = null;
+scene.background = new THREE.Color(0xbfe4ff);
 
-// =====================
-// CAMERA (REAL EYE HEIGHT FIX)
-// =====================
 const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
+  45,
+  innerWidth / innerHeight,
   0.1,
   5000
 );
 
-// realistic walking height
-camera.position.set(0, 2, 10);
+const CAMERA_HEIGHT = -1.5;
+camera.position.set(0, CAMERA_HEIGHT, 8);
 
-// =====================
-// RENDERER
-// =====================
+/* =========================
+RENDERER
+========================= */
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// =====================
-// CONTROLS
-// =====================
+/* =========================
+LIGHTS
+========================= */
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
+
+const sun = new THREE.DirectionalLight(0xffffff, 2);
+sun.position.set(50, 100, 50);
+scene.add(sun);
+
+/* =========================
+CONTROLS
+========================= */
+
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-document.addEventListener("click", () => controls.lock());
+const isTouchDevice = matchMedia("(pointer: coarse)").matches || innerWidth <= 900;
 
-// =====================
-// LIGHTING
-// =====================
-const hemi = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 0.9);
-scene.add(hemi);
+document.addEventListener("click", () => {
+  if (!isTouchDevice) controls.lock();
+});
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-sun.position.set(100, 150, 100);
-sun.castShadow = true;
-scene.add(sun);
+/* =========================
+INPUT
+========================= */
 
-// =====================
-// GROUND
-// =====================
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshStandardMaterial({
-    color: 0xb0b0b0,
-    roughness: 1
-  })
-);
-
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// =====================
-// ROAD
-// =====================
-const road = new THREE.Mesh(
-  new THREE.PlaneGeometry(120, 12),
-  new THREE.MeshStandardMaterial({
-    color: 0x6f6f6f,
-    roughness: 1
-  })
-);
-
-road.rotation.x = -Math.PI / 2;
-road.position.y = 0.01;
-scene.add(road);
-
-// =====================
-// MOVEMENT (SMOOTH + ARCHVIZ STYLE)
-// =====================
 const keys = {};
-let velocity = new THREE.Vector3();
-
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
 
+document.querySelectorAll("#movePad button").forEach(button => {
+  const key = button.dataset.key;
+
+  button.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    keys[key] = true;
+    button.setPointerCapture(event.pointerId);
+  });
+
+  button.addEventListener("pointerup", event => {
+    event.preventDefault();
+    keys[key] = false;
+  });
+
+  button.addEventListener("pointercancel", () => {
+    keys[key] = false;
+  });
+});
+
+let touchLookActive = false;
+let touchLookId = null;
+let lastTouchX = 0;
+let lastTouchY = 0;
+const lookEuler = new THREE.Euler(0, 0, 0, "YXZ");
+
+renderer.domElement.addEventListener("pointerdown", event => {
+  if (!isTouchDevice || event.clientX < innerWidth * 0.42) return;
+
+  event.preventDefault();
+  touchLookActive = true;
+  touchLookId = event.pointerId;
+  lastTouchX = event.clientX;
+  lastTouchY = event.clientY;
+  renderer.domElement.setPointerCapture(event.pointerId);
+});
+
+renderer.domElement.addEventListener("pointermove", event => {
+  if (!touchLookActive || event.pointerId !== touchLookId) return;
+
+  const deltaX = event.clientX - lastTouchX;
+  const deltaY = event.clientY - lastTouchY;
+
+  lookEuler.setFromQuaternion(camera.quaternion);
+  lookEuler.y -= deltaX * 0.004;
+  lookEuler.x -= deltaY * 0.004;
+  lookEuler.x = THREE.MathUtils.clamp(lookEuler.x, -1.2, 1.2);
+  camera.quaternion.setFromEuler(lookEuler);
+
+  lastTouchX = event.clientX;
+  lastTouchY = event.clientY;
+});
+
+function stopTouchLook(event) {
+  if (event.pointerId !== touchLookId) return;
+  touchLookActive = false;
+  touchLookId = null;
+}
+
+renderer.domElement.addEventListener("pointerup", stopTouchLook);
+renderer.domElement.addEventListener("pointercancel", stopTouchLook);
+
+/* =========================
+DRACO FIX (IMPORTANT)
+========================= */
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+
+draco.setDecoderPath("./vendor/draco/");
+
+loader.setDRACOLoader(draco);
+
+/* =========================
+COLLISION SYSTEM
+========================= */
+
+const colliders = [];
+const playerBox = new THREE.Box3();
+const PLAYER_RADIUS = 0.35;
+const COLLIDER_NAMES = new Set([
+  "col_guardhouse1",
+  "col_guardhouse2",
+  "col_jhs",
+  "col_caf",
+  "col_tennisfront",
+  "col_tennisright",
+  "col_tennisback",
+  "col_dit",
+  "col_ditfront",
+  "col_ditmain",
+  "col_16th",
+  "col_palawan",
+  "col_oval1",
+  "col_oval2",
+  "col_oval3",
+  "col_comlab",
+  "col_registrar1",
+  "col_registrar2",
+  "col_registrar3",
+  "col_registrar4",
+  "col_sdc",
+  "col_guidance",
+  "col_pav1",
+  "col_pav2",
+  "col_pav3",
+  "col_dhess2",
+  "col_dhess1",
+  "col_dhess3",
+  "col_gate1",
+  "col_gate2",
+]);
+
+function cleanName(name) {
+  return (name || "").toLowerCase().replace(/[^\w]/g, "");
+}
+
+function isColliderMesh(child) {
+  const name = cleanName(child.name);
+  return name.startsWith("col_") || COLLIDER_NAMES.has(name);
+}
+
+function makeColliderBox(child) {
+  child.geometry.computeBoundingBox();
+
+  const box = child.geometry.boundingBox.clone()
+    .applyMatrix4(child.matrixWorld);
+
+  const size = box.getSize(new THREE.Vector3());
+  if (size.y < 0.1) return null;
+
+  box.min.y = -10;
+  box.max.y = 20;
+
+  return box;
+}
+
+function findObjectByNames(root, names) {
+  let exactMatch = null;
+  let partialMatch = null;
+  const wanted = names.map(cleanName);
+
+  root.traverse(child => {
+    if (exactMatch) return;
+    if (!child.name) return;
+
+    const name = cleanName(child.name);
+    if (wanted.includes(name)) {
+      exactMatch = child;
+      return;
+    }
+
+    if (!partialMatch && wanted.some(part => name.includes(part))) {
+      partialMatch = child;
+    }
+  });
+
+  return exactMatch || partialMatch;
+}
+
+function findObjectByExactName(root, exactName) {
+  let found = null;
+  const wanted = cleanName(exactName);
+
+  root.traverse(child => {
+    if (found || !child.name) return;
+    if (cleanName(child.name) === wanted) found = child;
+  });
+
+  return found;
+}
+
+function getObjectCenter(object) {
+  const box = new THREE.Box3().setFromObject(object);
+  return box.getCenter(new THREE.Vector3());
+}
+
+function getFrontGateSpawn(model) {
+  const gate = findObjectByExactName(model, "frontgate") || findObjectByNames(model, [
+    "front_gate",
+    "modern gate 1",
+    "gate",
+  ]);
+
+  if (!gate) {
+    return {
+      position: new THREE.Vector3(0, CAMERA_HEIGHT, 10),
+      lookTarget: new THREE.Vector3(0, CAMERA_HEIGHT, 0),
+    };
+  }
+
+  const gatePosition = getObjectCenter(gate);
+  const campusCenter = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
+  const outsideDirection = gatePosition.clone().sub(campusCenter);
+  outsideDirection.y = 0;
+
+  if (outsideDirection.lengthSq() === 0) {
+    outsideDirection.set(0, 0, 1);
+  }
+
+  outsideDirection.normalize();
+
+  const spawn = gatePosition.clone().add(outsideDirection.clone().multiplyScalar(8));
+  spawn.y = CAMERA_HEIGHT;
+
+  for (let i = 0; i < 12 && hitsWall(spawn); i++) {
+    spawn.add(outsideDirection.clone().multiplyScalar(1.5));
+  }
+
+  return {
+    position: spawn,
+    lookTarget: new THREE.Vector3(gatePosition.x, CAMERA_HEIGHT, gatePosition.z),
+  };
+}
+
+function hitsWall(pos) {
+
+  playerBox.min.set(
+    pos.x - PLAYER_RADIUS,
+    pos.y - 1,
+    pos.z - PLAYER_RADIUS
+  );
+
+  playerBox.max.set(
+    pos.x + PLAYER_RADIUS,
+    pos.y + 1,
+    pos.z + PLAYER_RADIUS
+  );
+
+  return colliders.some(c => c.intersectsBox(playerBox));
+}
+
+/* =========================
+LOAD GLB (FIXED PATH SAFETY)
+========================= */
+
+const MODEL_PATH = "./models/overall4_optimized.glb";
+
+loader.load(
+
+  MODEL_PATH,
+
+  (gltf) => {
+
+    const model = gltf.scene;
+    scene.add(model);
+
+    /* SCALE */
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const scale = 40 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(scale);
+
+    /* CENTER */
+    const box2 = new THREE.Box3().setFromObject(model);
+    const center = box2.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.y -= box2.min.y;
+
+    model.updateMatrixWorld(true);
+
+    /* COLLIDERS */
+    const fallbackColliders = [];
+
+    model.traverse(child => {
+
+      if (!child.isMesh) return;
+
+      const name = (child.name || "").toLowerCase();
+      const colliderBox = makeColliderBox(child);
+
+      if (!colliderBox) return;
+
+      if (isColliderMesh(child)) {
+        child.visible = false;
+        colliders.push(colliderBox);
+        return;
+      }
+
+      if (
+        name.includes("road") ||
+        name.includes("path") ||
+        name.includes("walk") ||
+        name.includes("grass")
+      ) return;
+
+      fallbackColliders.push(colliderBox);
+    });
+
+    if (colliders.length === 0) {
+      colliders.push(...fallbackColliders);
+    }
+
+    /* SPAWN */
+    const spawn = getFrontGateSpawn(model);
+    controls.getObject().position.copy(spawn.position);
+    controls.getObject().lookAt(spawn.lookTarget);
+
+    document.getElementById("info").textContent =
+      "Loaded successfully | Camera: " + CAMERA_HEIGHT + " | Colliders: " + colliders.length;
+
+  },
+
+  (xhr) => {
+
+    const percent = xhr.total
+      ? Math.round((xhr.loaded / xhr.total) * 100)
+      : 0;
+
+    document.getElementById("info").textContent =
+      "Loading... " + percent + "%";
+  },
+
+  (error) => {
+
+    console.error("GLB ERROR:", error);
+
+    document.getElementById("info").textContent =
+      "Failed loading GLB - check file path / Live Server folder";
+  }
+);
+
+/* =========================
+MOVEMENT
+========================= */
+
+const dir = new THREE.Vector3();
+const forward = new THREE.Vector3();
+const right = new THREE.Vector3();
+
+const SPEED = 0.18;
+
 function movePlayer() {
 
-  const speed = 0.06; // slower = more realistic walking
-  const damping = 0.85;
+  const obj = controls.getObject();
 
-  let dir = new THREE.Vector3();
+  dir.set(0, 0, 0);
 
-  if (keys["KeyW"]) dir.z -= 1;
-  if (keys["KeyS"]) dir.z += 1;
-  if (keys["KeyA"]) dir.x -= 1;
-  if (keys["KeyD"]) dir.x += 1;
-
-  // normalize
-  if (dir.length() > 0) dir.normalize();
-
-  const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
   forward.normalize();
 
-  const right = new THREE.Vector3();
-  right.crossVectors(forward, new THREE.Vector3(0,1,0));
+  right.crossVectors(forward, camera.up).normalize();
 
-  velocity.x = (right.x * dir.x + forward.x * dir.z) * speed;
-  velocity.z = (right.z * dir.x + forward.z * dir.z) * speed;
+  if (keys["KeyW"]) dir.add(forward);
+  if (keys["KeyS"]) dir.sub(forward);
+  if (keys["KeyA"]) dir.sub(right);
+  if (keys["KeyD"]) dir.add(right);
 
-  camera.position.x += velocity.x;
-  camera.position.z += velocity.z;
+  if (dir.lengthSq() === 0) return;
 
-  velocity.multiplyScalar(damping);
+  dir.normalize().multiplyScalar(SPEED);
+
+  const next = obj.position.clone();
+
+  next.x += dir.x;
+  if (!hitsWall(next)) obj.position.x = next.x;
+
+  next.copy(obj.position);
+  next.z += dir.z;
+  if (!hitsWall(next)) obj.position.z = next.z;
+
+  obj.position.y = CAMERA_HEIGHT;
 }
 
-// =====================
-// MOBILE JOYSTICK
-// =====================
-const joystick = document.getElementById("joystick");
-const stick = document.getElementById("stick");
+/* =========================
+LOOP
+========================= */
 
-let joyX = 0;
-let joyY = 0;
-
-joystick.addEventListener("touchmove", (e) => {
-  const t = e.touches[0];
-  joyX = (t.clientX - 60) / 40;
-  joyY = (t.clientY - 60) / 40;
-
-  joyX = Math.max(-1, Math.min(1, joyX));
-  joyY = Math.max(-1, Math.min(1, joyY));
-
-  stick.style.transform = `translate(${joyX * 30}px, ${joyY * 30}px)`;
-});
-
-joystick.addEventListener("touchend", () => {
-  joyX = 0;
-  joyY = 0;
-  stick.style.transform = "translate(0px,0px)";
-});
-
-// =====================
-// MODEL LOADER
-// =====================
-const loader = new GLTFLoader();
-
-function loadBuilding(url, x, z) {
-
-  loader.load(url, (gltf) => {
-
-    const model = gltf.scene;
-
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-
-        if (child.material) {
-          child.material.metalness = 0;
-          child.material.roughness = 1;
-        }
-      }
-    });
-
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-
-    const scale = 25 / size.y;
-    model.scale.set(scale, scale, scale);
-
-    const box2 = new THREE.Box3().setFromObject(model);
-    model.position.y -= box2.min.y;
-
-    model.position.x = x;
-    model.position.z = z;
-
-    scene.add(model);
-
-  });
-
-}
-
-// =====================
-// CAMPUS
-// =====================
-loadBuilding("./models/guardhouse.glb", -35, 0);
-loadBuilding("./models/hallway.glb", 35, 0);
-
-// =====================
-// LOOP
-// =====================
 function animate() {
   requestAnimationFrame(animate);
-
   movePlayer();
-
-  // mobile movement
-  camera.position.x += joyX * 0.03;
-  camera.position.z += joyY * 0.03;
-
   renderer.render(scene, camera);
 }
 
 animate();
 
-// =====================
-// RESIZE
-// =====================
+/* =========================
+RESIZE
+========================= */
+
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 
 </script>
