@@ -1,208 +1,1207 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dynamic Campus</title>
+<title>Campus Tour Fixed</title>
+<script src="orientation-lock.js" defer></script>
 
 <style>
-body { margin:0; overflow:hidden; }
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial;
+  touch-action: none;
+  user-select: none;
+}
 
 #info {
-  position:fixed;
-  top:10px;
-  left:10px;
-  background:rgba(0,0,0,0.6);
-  color:white;
-  padding:10px;
-  font-family:Arial;
-  z-index:10;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border: 1px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+#touchControls {
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 12;
+}
+
+#movePad {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 142px;
+  height: 142px;
+  pointer-events: auto;
+}
+
+#movePad button {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+#movePad button:active {
+  background: rgba(37,99,235,0.85);
+}
+
+#moveForward { left: 49px; top: 0; }
+#moveLeft { left: 0; top: 49px; }
+#moveBack { left: 49px; top: 98px; }
+#moveRight { left: 98px; top: 49px; }
+
+#lookHint {
+  position: absolute;
+  right: 18px;
+  bottom: 24px;
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  #touchControls {
+    display: block;
+  }
 }
 </style>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
 </head>
 
 <body>
 
-<div id="info">Loading Campus...</div>
+<div id="info">Loading...</div>
+<div id="crosshair"></div>
+<div id="touchControls">
+  <div id="movePad">
+    <button id="moveForward" data-key="KeyW" type="button" aria-label="Move forward">&uarr;</button>
+    <button id="moveLeft" data-key="KeyA" type="button" aria-label="Move left">&larr;</button>
+    <button id="moveBack" data-key="KeyS" type="button" aria-label="Move backward">&darr;</button>
+    <button id="moveRight" data-key="KeyD" type="button" aria-label="Move right">&rarr;</button>
+  </div>
+  <div id="lookHint">Drag here<br>to look</div>
+</div>
 
 <script type="module">
 
-import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+/* =========================
+LOCAL IMPORTS
+========================= */
 
-/* ================= SCENE ================= */
+import * as THREE from "./vendor/three/three.module.js";
+import { GLTFLoader } from "./vendor/three/GLTFLoader.js";
+import { DRACOLoader } from "./vendor/three/DRACOLoader.js";
+import { PointerLockControls } from "./vendor/three/PointerLockControls.js";
+
+/* =========================
+SCENE
+========================= */
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeaf1f7);
+scene.background = new THREE.Color(0x8fd3ff);
+scene.fog = new THREE.Fog(0xb8e4ff, 82, 210);
 
 const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
+  45,
+  innerWidth / innerHeight,
   0.1,
   5000
 );
 
-// ✔ FIX: camera starts high so you SEE overall.glb
-camera.position.set(0, 80, 120);
+const CAMERA_HEIGHT = -1.5;
+camera.position.set(0, CAMERA_HEIGHT, 8);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+/* =========================
+RENDERER
+========================= */
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.42;
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-/* ================= CONTROLS ================= */
+/* =========================
+LIGHTS
+========================= */
+
+scene.add(new THREE.HemisphereLight(0xfff0d1, 0x6a5c43, 1.75));
+
+const sun = new THREE.DirectionalLight(0xffbf73, 3.15);
+sun.position.set(78, 105, 34);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 260;
+sun.shadow.camera.left = -65;
+sun.shadow.camera.right = 65;
+sun.shadow.camera.top = 65;
+sun.shadow.camera.bottom = -65;
+scene.add(sun);
+
+const softFill = new THREE.DirectionalLight(0xffead0, 0.62);
+softFill.position.set(-45, 55, -35);
+scene.add(softFill);
+
+const amberBounce = new THREE.PointLight(0xff9b45, 0.95, 95, 2);
+amberBounce.position.set(-16, 10, 16);
+scene.add(amberBounce);
+
+function addCloudCluster(x, y, z, scale = 1) {
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xfff7e8,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    fog: false,
+  });
+  const geometry = new THREE.SphereGeometry(1, 18, 10);
+  const parts = [
+    [-1.5, 0, 0, 1.8, 0.45, 0.55],
+    [-0.35, 0.12, 0.05, 2.1, 0.55, 0.68],
+    [0.9, 0.02, 0, 1.7, 0.42, 0.52],
+    [1.85, -0.04, 0.02, 1.15, 0.32, 0.42],
+  ];
+  const group = new THREE.Group();
+
+  parts.forEach(part => {
+    const cloud = new THREE.Mesh(geometry, material);
+    cloud.position.set(part[0] * scale, part[1] * scale, part[2] * scale);
+    cloud.scale.set(part[3] * scale, part[4] * scale, part[5] * scale);
+    group.add(cloud);
+  });
+
+  group.position.set(x, y, z);
+  scene.add(group);
+  return group;
+}
+
+function addSkyClouds() {
+  addCloudCluster(-34, 28, -36, 3.2);
+  addCloudCluster(-18, 23, -18, 2.7);
+  addCloudCluster(12, 27, -30, 3.4);
+  addCloudCluster(34, 24, -12, 2.8);
+  addCloudCluster(-28, 31, 18, 2.5);
+  addCloudCluster(-5, 29, 28, 2.7);
+  addCloudCluster(25, 22, 16, 2.3);
+  addCloudCluster(46, 30, 34, 3.1);
+}
+
+function addOuterEnvironment(bounds) {
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const groundY = bounds.min.y - 0.05;
+  const outerSize = Math.max(size.x, size.z) + 96;
+  const campusSize = Math.max(size.x, size.z) + 8;
+
+  const outerGround = new THREE.Mesh(
+    new THREE.PlaneGeometry(outerSize, outerSize),
+    new THREE.MeshStandardMaterial({ color: 0x716b44, roughness: 0.98, metalness: 0 })
+  );
+  outerGround.rotation.x = -Math.PI / 2;
+  outerGround.position.set(center.x, groundY - 0.04, center.z);
+  outerGround.receiveShadow = true;
+  scene.add(outerGround);
+
+  const outerRoadMaterial = new THREE.MeshStandardMaterial({ color: 0x272522, roughness: 0.94, metalness: 0.01 });
+  const laneMaterial = new THREE.MeshBasicMaterial({ color: 0xf4d06f });
+  const roadWidth = 4.8;
+  const roadLength = outerSize;
+  const roads = [
+    [new THREE.PlaneGeometry(roadWidth, roadLength), center.x - campusSize * 0.55, center.z],
+    [new THREE.PlaneGeometry(roadLength, roadWidth), center.x, center.z + campusSize * 0.52],
+  ];
+
+  roads.forEach(([geometry, x, z], index) => {
+    const road = new THREE.Mesh(geometry, outerRoadMaterial);
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(x, groundY + 0.012, z);
+    road.receiveShadow = true;
+    scene.add(road);
+
+    const lane = new THREE.Mesh(
+      new THREE.PlaneGeometry(index === 0 ? 0.18 : roadLength, index === 0 ? roadLength : 0.18),
+      laneMaterial
+    );
+    lane.rotation.x = -Math.PI / 2;
+    lane.position.set(x, groundY + 0.018, z);
+    scene.add(lane);
+  });
+
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xb9ad92, roughness: 0.88, metalness: 0 });
+  const capMaterial = new THREE.MeshStandardMaterial({ color: 0x8d8068, roughness: 0.9, metalness: 0 });
+  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x6b4427, roughness: 0.9 });
+  const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x4f6d2d, roughness: 0.86 });
+  const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xa77d5a, roughness: 0.82 });
+
+  const wallHeight = 2.25;
+  const wallThickness = 0.42;
+  const wallPadding = 3.2;
+  const wallX = size.x + wallPadding * 2;
+  const wallZ = size.z + wallPadding * 2;
+  const wallY = groundY + wallHeight / 2;
+  const walls = [
+    [new THREE.BoxGeometry(wallThickness, wallHeight, wallZ), bounds.min.x - wallPadding, wallY, center.z],
+    [new THREE.BoxGeometry(wallThickness, wallHeight, wallZ), bounds.max.x + wallPadding, wallY, center.z],
+    [new THREE.BoxGeometry(wallX, wallHeight, wallThickness), center.x, wallY, bounds.min.z - wallPadding],
+    [new THREE.BoxGeometry(wallX, wallHeight, wallThickness), center.x, wallY, bounds.max.z + wallPadding],
+  ];
+
+  walls.forEach(item => {
+    const wall = new THREE.Mesh(item[0], wallMaterial);
+    wall.position.set(item[1], item[2], item[3]);
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    scene.add(wall);
+  });
+
+  const postGeometry = new THREE.BoxGeometry(0.58, wallHeight + 0.45, 0.58);
+  const postPositions = [
+    [bounds.min.x - wallPadding, bounds.min.z - wallPadding],
+    [bounds.min.x - wallPadding, bounds.max.z + wallPadding],
+    [bounds.max.x + wallPadding, bounds.min.z - wallPadding],
+    [bounds.max.x + wallPadding, bounds.max.z + wallPadding],
+    [center.x, bounds.min.z - wallPadding],
+    [center.x, bounds.max.z + wallPadding],
+    [bounds.min.x - wallPadding, center.z],
+    [bounds.max.x + wallPadding, center.z],
+  ];
+
+  postPositions.forEach(([x, z]) => {
+    const post = new THREE.Mesh(postGeometry, capMaterial);
+    post.position.set(x, groundY + (wallHeight + 0.45) / 2, z);
+    post.castShadow = true;
+    post.receiveShadow = true;
+    scene.add(post);
+  });
+
+  const spots = [
+    [-0.74, -0.72], [-0.54, -0.82], [-0.24, -0.78], [0.18, -0.84], [0.52, -0.72],
+    [-0.82, -0.42], [-0.82, 0.08], [-0.76, 0.48], [0.72, -0.28], [0.82, 0.18], [0.66, 0.62],
+    [-0.42, 0.78], [0.02, 0.82], [0.38, 0.76],
+  ];
+
+  spots.forEach(([sx, sz], index) => {
+    const x = center.x + sx * outerSize * 0.45;
+    const z = center.z + sz * outerSize * 0.45;
+    if (index % 4 === 0) {
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(4.4, 2.2 + (index % 3), 3.6),
+        buildingMaterial
+      );
+      block.position.set(x, groundY + block.geometry.parameters.height / 2, z);
+      block.castShadow = true;
+      block.receiveShadow = true;
+      scene.add(block);
+      return;
+    }
+
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.45, 8), trunkMaterial);
+    trunk.position.set(x, groundY + 0.72, z);
+    trunk.castShadow = true;
+    scene.add(trunk);
+
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.95 + (index % 3) * 0.16, 12, 8), leafMaterial);
+    leaves.position.set(x, groundY + 1.85, z);
+    leaves.castShadow = true;
+    scene.add(leaves);
+  });
+}
+
+function addCampusFrame(bounds) {
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const groundY = bounds.min.y - 0.035;
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(size.x + 4.2, size.z + 4.2),
+    new THREE.MeshStandardMaterial({ color: 0x7a6f42, roughness: 0.96, metalness: 0 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(center.x, groundY, center.z);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const curbMaterial = new THREE.MeshStandardMaterial({ color: 0xb9ad92, roughness: 0.86, metalness: 0 });
+  const curbHeight = 0.18;
+  const curbWidth = 0.16;
+  const zLength = size.z + curbWidth * 2;
+  const xLength = size.x + curbWidth * 2;
+  const curbs = [
+    [new THREE.BoxGeometry(curbWidth, curbHeight, zLength), bounds.min.x - curbWidth / 2, groundY + curbHeight / 2, center.z],
+    [new THREE.BoxGeometry(curbWidth, curbHeight, zLength), bounds.max.x + curbWidth / 2, groundY + curbHeight / 2, center.z],
+    [new THREE.BoxGeometry(xLength, curbHeight, curbWidth), center.x, groundY + curbHeight / 2, bounds.min.z - curbWidth / 2],
+    [new THREE.BoxGeometry(xLength, curbHeight, curbWidth), center.x, groundY + curbHeight / 2, bounds.max.z + curbWidth / 2],
+  ];
+
+  curbs.forEach(item => {
+    const curb = new THREE.Mesh(item[0], curbMaterial);
+    curb.position.set(item[1], item[2], item[3]);
+    curb.castShadow = true;
+    curb.receiveShadow = true;
+    scene.add(curb);
+  });
+}
+
+function setupCampusBounds(model) {
+  const bounds = new THREE.Box3().setFromObject(model);
+  bounds.min.x += PLAYER_RADIUS;
+  bounds.max.x -= PLAYER_RADIUS;
+  bounds.min.z += PLAYER_RADIUS;
+  bounds.max.z -= PLAYER_RADIUS;
+  campusBounds = bounds;
+  const visualBounds = bounds.clone().expandByScalar(0.6);
+  addOuterEnvironment(visualBounds);
+  addCampusFrame(visualBounds);
+}
+
+function isInsideCampusBounds(pos) {
+  if (!campusBounds) return true;
+  return (
+    pos.x >= campusBounds.min.x &&
+    pos.x <= campusBounds.max.x &&
+    pos.z >= campusBounds.min.z &&
+    pos.z <= campusBounds.max.z
+  );
+}
+/* =========================
+CONTROLS
+========================= */
+
 const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-document.addEventListener("click", () => controls.lock());
+const isTouchDevice = matchMedia("(pointer: coarse)").matches || innerWidth <= 900;
 
-/* ================= LIGHT ================= */
-scene.add(new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1));
+document.addEventListener("click", () => {
+  if (!isTouchDevice) controls.lock();
+});
 
-const sun = new THREE.DirectionalLight(0xffffff, 2);
-sun.position.set(50, 100, 50);
-scene.add(sun);
+/* =========================
+INPUT
+========================= */
 
-/* ================= GROUND ================= */
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshStandardMaterial({ color: 0xb0b0b0 })
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-/* ================= MOVEMENT ================= */
 const keys = {};
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
 
-function movePlayer(){
-  const speed = 0.2;
-  if(keys["KeyW"]) controls.moveForward(speed);
-  if(keys["KeyS"]) controls.moveForward(-speed);
-  if(keys["KeyA"]) controls.moveRight(-speed);
-  if(keys["KeyD"]) controls.moveRight(speed);
-}
+document.querySelectorAll("#movePad button").forEach(button => {
+  const key = button.dataset.key;
 
-/* ================= LOADER ================= */
-const loader = new GLTFLoader();
-const loaded = {};
+  button.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    keys[key] = true;
+    button.setPointerCapture(event.pointerId);
+  });
 
-/* ================= BASE WORLD (OVERALL GLB) ================= */
-loader.load("./models/overall.glb", (gltf) => {
+  button.addEventListener("pointerup", event => {
+    event.preventDefault();
+    keys[key] = false;
+  });
 
-  const model = gltf.scene;
-
-  // center model
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-
-  // scale fix
-  const size = new THREE.Vector3();
-  box.getSize(size);
-
-  const max = Math.max(size.x, size.y, size.z);
-  const scale = 80 / max;
-
-  model.scale.set(scale, scale, scale);
-
-  // ground align
-  const box2 = new THREE.Box3().setFromObject(model);
-  model.position.y -= box2.min.y;
-
-  scene.add(model);
-
-  document.getElementById("info").innerHTML = "Campus Loaded ✔";
+  button.addEventListener("pointercancel", () => {
+    keys[key] = false;
+  });
 });
 
-/* ================= START DELAY (PREVENT EARLY POP-IN) ================= */
-let started = false;
-setTimeout(() => {
-  started = true;
-}, 3000);
+let touchLookActive = false;
+let touchLookId = null;
+let lastTouchX = 0;
+let lastTouchY = 0;
+const lookEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
-/* ================= BUILDINGS ================= */
-const buildings = [
-  {
-    name: "guardhouse",
-    url: "./models/guardhouse.glb",
-    position: { x: -35, z: 0 },
-    range: 120
-  },
-  {
-    name: "hallway",
-    url: "./models/hallway.glb",
-    position: { x: 35, z: 0 },
-    range: 120
+renderer.domElement.addEventListener("pointerdown", event => {
+  if (!isTouchDevice || event.clientX < innerWidth * 0.42) return;
+
+  event.preventDefault();
+  touchLookActive = true;
+  touchLookId = event.pointerId;
+  lastTouchX = event.clientX;
+  lastTouchY = event.clientY;
+  renderer.domElement.setPointerCapture(event.pointerId);
+});
+
+renderer.domElement.addEventListener("pointermove", event => {
+  if (!touchLookActive || event.pointerId !== touchLookId) return;
+
+  const deltaX = event.clientX - lastTouchX;
+  const deltaY = event.clientY - lastTouchY;
+
+  lookEuler.setFromQuaternion(camera.quaternion);
+  lookEuler.y -= deltaX * 0.004;
+  lookEuler.x -= deltaY * 0.004;
+  lookEuler.x = THREE.MathUtils.clamp(lookEuler.x, -1.2, 1.2);
+  camera.quaternion.setFromEuler(lookEuler);
+
+  lastTouchX = event.clientX;
+  lastTouchY = event.clientY;
+});
+
+function stopTouchLook(event) {
+  if (event.pointerId !== touchLookId) return;
+  touchLookActive = false;
+  touchLookId = null;
+}
+
+renderer.domElement.addEventListener("pointerup", stopTouchLook);
+renderer.domElement.addEventListener("pointercancel", stopTouchLook);
+
+/* =========================
+DRACO FIX (IMPORTANT)
+========================= */
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+
+draco.setDecoderPath("./vendor/draco/");
+
+loader.setDRACOLoader(draco);
+
+/* =========================
+COLLISION SYSTEM
+========================= */
+
+const colliders = [];
+const playerBox = new THREE.Box3();
+let frontGatePassageBox = null;
+let campusBounds = null;
+const PLAYER_RADIUS = 0.35;
+const COLLIDER_NAMES = new Set([
+  "col_guardhouse1",
+  "col_guardhouse2",
+  "col_jhs",
+  "col_caf",
+  "col_tennisfront",
+  "col_tennisright",
+  "col_tennisback",
+  "col_dit",
+  "col_ditfront",
+  "col_ditmain",
+  "col_16th",
+  "col_palawan",
+  "col_oval1",
+  "col_oval2",
+  "col_oval3",
+  "col_comlab",
+  "col_registrar1",
+  "col_registrar2",
+  "col_registrar3",
+  "col_registrar4",
+  "col_sdc",
+  "col_guidance",
+  "col_pav1",
+  "col_pav2",
+  "col_pav3",
+  "col_dhess2",
+  "col_dhess1",
+  "col_dhess3",
+]);
+
+function cleanName(name) {
+  return (name || "").toLowerCase().replace(/[^\w]/g, "");
+}
+
+function isGateColliderName(name) {
+  return cleanName(name).startsWith("col_gate");
+}
+
+function isGateColliderMesh(child) {
+  let object = child;
+
+  while (object) {
+    if (isGateColliderName(object.name)) return true;
+    object = object.parent;
   }
-];
 
-/* ================= LOAD / UNLOAD ================= */
-function loadBuilding(b){
-  if(loaded[b.name]) return;
+  return false;
+}
 
-  loader.load(b.url, (gltf) => {
-    const model = gltf.scene;
-    model.position.set(b.position.x, 0, b.position.z);
-    scene.add(model);
-    loaded[b.name] = model;
+function isColliderMesh(child) {
+  let object = child;
+
+  while (object) {
+    const name = cleanName(object.name);
+    if (isGateColliderName(name)) return false;
+    if (name.startsWith("col_") || COLLIDER_NAMES.has(name)) return true;
+    object = object.parent;
+  }
+
+  return false;
+}
+
+function getMeshWorldBox(child) {
+  child.geometry.computeBoundingBox();
+  return child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
+}
+
+function hasMaterialName(materialNames, fragments) {
+  return materialNames.some(name => fragments.some(fragment => name.includes(fragment)));
+}
+
+function isSidewalkPaverMaterial(materialNames) {
+  return hasMaterialName(materialNames, [
+    "tileexterior",
+    "tile",
+    "paver",
+    "paving",
+    "sidewalk",
+    "walkway"
+  ]);
+}
+
+function makePaverTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#d8d8d4";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#8d8f8c";
+  ctx.lineWidth = 3;
+
+  for (let y = 0; y <= canvas.height; y += 64) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  for (let row = 0; row < 4; row += 1) {
+    const offset = row % 2 === 0 ? 0 : 64;
+    for (let x = -offset; x <= canvas.width; x += 128) {
+      ctx.beginPath();
+      ctx.moveTo(x, row * 64);
+      ctx.lineTo(x, row * 64 + 64);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 64, row * 64 + 32);
+      ctx.lineTo(x + 64, row * 64 + 64);
+      ctx.stroke();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(8, 8);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+const sidewalkPaverTexture = makePaverTexture();
+
+function isLowFlatSurface(child) {
+  const box = getMeshWorldBox(child);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  return center.y < -1.9 && size.y < 0.22 && Math.max(size.x, size.z) > 1.4;
+}
+
+function isRoadMesh(child) {
+  const materials = Array.isArray(child.material) ? child.material : [child.material];
+  const materialNames = materials.map(material => cleanName(material?.name));
+
+  if (isSidewalkPaverMaterial(materialNames)) {
+    return false;
+  }
+
+  let object = child;
+
+  while (object) {
+    const name = cleanName(object.name);
+    if (
+      name.includes("road") ||
+      name.includes("asphalt") ||
+      name.includes("street") ||
+      name.includes("driveway") ||
+      name.includes("parking") ||
+      name.includes("path") ||
+      name.includes("walk")
+    ) {
+      return true;
+    }
+    object = object.parent;
+  }
+
+  if (hasMaterialName(materialNames, ["asphalt"])) {
+    return true;
+  }
+
+  if (hasMaterialName(materialNames, ["material23311"])) {
+    return true;
+  }
+
+  if (!isLowFlatSurface(child)) {
+    return false;
+  }
+
+  if (hasMaterialName(materialNames, [
+    "grass", "vegetation", "green", "leaf", "lime", "soil", "wood", "cherry",
+    "redwood", "brick", "marble", "metal", "flower", "ruby", "scarlet", "tangerine"
+  ])) {
+    return false;
+  }
+
+  return hasMaterialName(materialNames, [
+    "lagoon", "cooltide", "bluebellmist", "pewtershine", "softcloud",
+    "ashwhisper", "concrete", "gravel", "basketweave", "linen", "carpet"
+  ]);
+}
+
+function makeRoadMaterial(sourceMaterial) {
+  const material = new THREE.MeshStandardMaterial();
+
+  material.name = "campus_asphalt_road";
+  material.color.set(0x2f3133);
+  material.roughness = 0.98;
+  material.metalness = 0.01;
+  material.envMapIntensity = 0.04;
+  material.transparent = false;
+  material.opacity = 1;
+  material.map = null;
+  material.normalMap = null;
+  material.roughnessMap = null;
+  material.metalnessMap = null;
+
+  return material;
+}
+
+function makeSidewalkPaverMaterial(sourceMaterial) {
+  const material = new THREE.MeshStandardMaterial();
+  material.name = "campus_sidewalk_pavers";
+  material.color.set(0xe3e3df);
+  material.roughness = 0.92;
+  material.metalness = 0;
+  material.map = sidewalkPaverTexture;
+  material.normalMap = sourceMaterial?.normalMap || null;
+  material.transparent = false;
+  material.opacity = 1;
+  material.side = THREE.DoubleSide;
+  return material;
+}
+
+function makeWarmGroundMaterial(sourceMaterial) {
+  const material = new THREE.MeshStandardMaterial();
+  material.name = "campus_warm_ground";
+  material.color.set(0x7d734a);
+  material.roughness = 0.96;
+  material.metalness = 0;
+  material.transparent = false;
+  material.opacity = 1;
+  material.map = null;
+  return material;
+}
+
+function makeFenceBlockMaterial(sourceMaterial) {
+  const material = new THREE.MeshStandardMaterial();
+  material.name = "campus_fence_block";
+  material.color.set(0xb7a58a);
+  material.roughness = 0.88;
+  material.metalness = 0;
+  material.transparent = false;
+  material.opacity = 1;
+  material.map = null;
+  return material;
+}
+
+function isBlueMaterial(material) {
+  const name = cleanName(material?.name);
+  if (
+    name.includes("cooltide") ||
+    name.includes("lagoon") ||
+    name.includes("bluebell") ||
+    name.includes("midnightblue")
+  ) {
+    return true;
+  }
+
+  const color = material?.color;
+  return Boolean(color && color.b > color.r * 1.22 && color.b > color.g * 1.04);
+}
+
+function warmNonSkyMaterial(child) {
+  const apply = material => {
+    if (!isBlueMaterial(material)) return material;
+    if (isRoadMesh(child)) return makeRoadMaterial(material);
+    if (isLowFlatSurface(child)) return makeWarmGroundMaterial(material);
+    return makeFenceBlockMaterial(material);
+  };
+
+  if (Array.isArray(child.material)) {
+    child.material = child.material.map(apply);
+  } else {
+    child.material = apply(child.material);
+  }
+}
+
+function applyRoadColor(child) {
+  if (Array.isArray(child.material)) {
+    child.material = child.material.map(material => makeRoadMaterial(material));
+  } else {
+    child.material = makeRoadMaterial(child.material);
+  }
+}
+
+function applySidewalkPaverMaterial(child) {
+  if (Array.isArray(child.material)) {
+    child.material = child.material.map(material => makeSidewalkPaverMaterial(material));
+  } else {
+    child.material = makeSidewalkPaverMaterial(child.material);
+  }
+}
+
+function getMaterialNames(child) {
+  const materials = Array.isArray(child.material) ? child.material : [child.material];
+  return materials.map(material => cleanName(material?.name));
+}
+
+function findMainRoadMesh(root) {
+  let best = null;
+
+  root.traverse(child => {
+    if (!child.isMesh) return;
+
+    const materialNames = getMaterialNames(child);
+    const isRoadCandidate =
+      hasMaterialName(materialNames, ["material23311", "asphalt"]) ||
+      cleanName(child.name).includes("road");
+
+    if (!isRoadCandidate) return;
+
+    const box = getMeshWorldBox(child);
+    const size = box.getSize(new THREE.Vector3());
+    const flatArea = size.x * size.z;
+
+    if (flatArea > 4 && (!best || flatArea > best.area)) {
+      best = { box, size, area: flatArea };
+    }
   });
+
+  return best;
 }
 
-function unloadBuilding(b){
-  if(!loaded[b.name]) return;
+function addRoadAndSidewalkOverlay(model) {
+  const road = findMainRoadMesh(model);
+  if (!road) return;
 
-  scene.remove(loaded[b.name]);
-  delete loaded[b.name];
-}
+  const center = road.box.getCenter(new THREE.Vector3());
+  const longAxis = road.size.x >= road.size.z ? "x" : "z";
+  const roadLength = Math.max(road.size.x, road.size.z);
+  const roadWidth = Math.min(road.size.x, road.size.z);
+  const roadY = road.box.max.y + 0.018;
+  const sidewalkWidth = Math.max(0.62, Math.min(1.05, roadWidth * 0.18));
+  const roadMat = makeRoadMaterial();
+  roadMat.depthWrite = false;
+  roadMat.polygonOffset = true;
+  roadMat.polygonOffsetFactor = -2;
+  roadMat.polygonOffsetUnits = -2;
 
-/* ================= DISTANCE CHECK ================= */
-function update(player){
+  const paverMat = makeSidewalkPaverMaterial();
+  paverMat.depthWrite = false;
+  paverMat.polygonOffset = true;
+  paverMat.polygonOffsetFactor = -3;
+  paverMat.polygonOffsetUnits = -3;
 
-  if(!started) return;
+  const makePlane = (width, length, material) => {
+    const geometry = longAxis === "z"
+      ? new THREE.PlaneGeometry(width, length)
+      : new THREE.PlaneGeometry(length, width);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.receiveShadow = true;
+    mesh.renderOrder = 8;
+    return mesh;
+  };
 
-  buildings.forEach(b => {
+  const roadOverlay = makePlane(roadWidth, roadLength, roadMat);
+  roadOverlay.position.set(center.x, roadY, center.z);
+  scene.add(roadOverlay);
 
-    const dist = Math.hypot(
-      player.x - b.position.x,
-      player.z - b.position.z
+  [-1, 1].forEach(side => {
+    const sidewalk = makePlane(sidewalkWidth, roadLength, paverMat);
+    const offset = roadWidth / 2 + sidewalkWidth / 2 + 0.03;
+    sidewalk.position.set(
+      center.x + (longAxis === "z" ? side * offset : 0),
+      roadY + 0.006,
+      center.z + (longAxis === "x" ? side * offset : 0)
     );
-
-    if(dist < b.range) loadBuilding(b);
-    else unloadBuilding(b);
-
+    scene.add(sidewalk);
   });
-
 }
 
-/* ================= LOOP ================= */
-function animate(){
+function makeColliderBox(child) {
+  child.geometry.computeBoundingBox();
+
+  const box = child.geometry.boundingBox.clone()
+    .applyMatrix4(child.matrixWorld);
+
+  const size = box.getSize(new THREE.Vector3());
+  if (size.y < 0.1) return null;
+
+  box.min.y = -10;
+  box.max.y = 20;
+
+  return box;
+}
+
+function findObjectByNames(root, names) {
+  let exactMatch = null;
+  let partialMatch = null;
+  const wanted = names.map(cleanName);
+
+  root.traverse(child => {
+    if (exactMatch) return;
+    if (!child.name) return;
+
+    const name = cleanName(child.name);
+    if (wanted.includes(name)) {
+      exactMatch = child;
+      return;
+    }
+
+    if (!partialMatch && wanted.some(part => name.includes(part))) {
+      partialMatch = child;
+    }
+  });
+
+  return exactMatch || partialMatch;
+}
+
+function findObjectByExactName(root, exactName) {
+  let found = null;
+  const wanted = cleanName(exactName);
+
+  root.traverse(child => {
+    if (found || !child.name) return;
+    if (cleanName(child.name) === wanted) found = child;
+  });
+
+  return found;
+}
+
+function getObjectBox(object) {
+  return new THREE.Box3().setFromObject(object);
+}
+
+function getObjectCenter(object) {
+  return getObjectBox(object).getCenter(new THREE.Vector3());
+}
+
+function getFrontGateSpawn(model) {
+  const gate = findObjectByExactName(model, "frontgate") || findObjectByNames(model, [
+    "frontgate",
+    "modern gate 1",
+    "gate",
+  ]);
+  const gate5 = findObjectByExactName(model, "col_gate5");
+
+  if (!gate) {
+    return {
+      position: new THREE.Vector3(0, CAMERA_HEIGHT, 10),
+      lookTarget: new THREE.Vector3(0, CAMERA_HEIGHT, 0),
+    };
+  }
+
+  const gatePosition = getObjectCenter(gate);
+  const gateBox = getObjectBox(gate);
+
+  if (gate5) {
+    const gate5Box = getObjectBox(gate5);
+    frontGatePassageBox = new THREE.Box3(
+      new THREE.Vector3(
+        gateBox.min.x - PLAYER_RADIUS * 2,
+        -10,
+        Math.min(gateBox.min.z, gate5Box.min.z) - PLAYER_RADIUS * 2
+      ),
+      new THREE.Vector3(
+        gateBox.max.x + PLAYER_RADIUS * 2,
+        20,
+        Math.max(gateBox.max.z, gate5Box.max.z) + PLAYER_RADIUS * 2
+      )
+    );
+    const gate5Position = gate5Box.getCenter(new THREE.Vector3());
+    const toGate5 = gate5Position.clone().sub(gatePosition);
+    toGate5.y = 0;
+
+    if (toGate5.lengthSq() > 0) {
+      const depth = toGate5.length();
+      const direction = toGate5.normalize();
+      const spawn = gatePosition.clone().add(direction.multiplyScalar(depth * 0.5));
+      spawn.x = THREE.MathUtils.clamp(
+        spawn.x,
+        gate5Box.min.x + PLAYER_RADIUS,
+        gate5Box.max.x - PLAYER_RADIUS
+      );
+      spawn.z = THREE.MathUtils.clamp(
+        spawn.z,
+        Math.min(gatePosition.z, gate5Position.z) + PLAYER_RADIUS,
+        Math.max(gatePosition.z, gate5Position.z) - PLAYER_RADIUS
+      );
+      spawn.y = CAMERA_HEIGHT;
+
+      return {
+        position: spawn,
+        lookTarget: new THREE.Vector3(gatePosition.x, CAMERA_HEIGHT, gatePosition.z),
+      };
+    }
+  }
+
+  return {
+    position: new THREE.Vector3(gatePosition.x, CAMERA_HEIGHT, gatePosition.z + 1),
+    lookTarget: new THREE.Vector3(gatePosition.x, CAMERA_HEIGHT, gatePosition.z),
+  };
+}
+
+function hitsWall(pos) {
+  if (!isInsideCampusBounds(pos)) return true;
+
+  playerBox.min.set(
+    pos.x - PLAYER_RADIUS,
+    pos.y - 1,
+    pos.z - PLAYER_RADIUS
+  );
+
+  playerBox.max.set(
+    pos.x + PLAYER_RADIUS,
+    pos.y + 1,
+    pos.z + PLAYER_RADIUS
+  );
+
+  return colliders.some(c => {
+    if (c.isGateCollider && frontGatePassageBox?.intersectsBox(playerBox)) return false;
+    return c.intersectsBox(playerBox);
+  });
+}
+
+/* =========================
+LOAD GLB (FIXED PATH SAFETY)
+========================= */
+
+const MODEL_PATH = "./models/overall4_optimized.glb";
+
+loader.load(
+
+  MODEL_PATH,
+
+  (gltf) => {
+
+    const model = gltf.scene;
+    scene.add(model);
+
+    /* SCALE */
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const scale = 40 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(scale);
+
+    /* CENTER */
+    const box2 = new THREE.Box3().setFromObject(model);
+    const center = box2.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.y -= box2.min.y;
+
+    model.updateMatrixWorld(true);
+    setupCampusBounds(model);
+    addRoadAndSidewalkOverlay(model);
+    addSkyClouds();
+
+    /* COLLIDERS */
+    const fallbackColliders = [];
+
+    model.traverse(child => {
+
+      if (!child.isMesh) return;
+
+      const name = (child.name || "").toLowerCase();
+
+      if (isGateColliderMesh(child)) {
+        child.visible = false;
+        child.material = new THREE.MeshBasicMaterial({ visible: false });
+        const gateColliderBox = makeColliderBox(child);
+        if (gateColliderBox) {
+          gateColliderBox.isGateCollider = true;
+          colliders.push(gateColliderBox);
+        }
+        return;
+      }
+
+      child.castShadow = true;
+      child.receiveShadow = true;
+
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      const materialNames = materials.map(material => cleanName(material?.name));
+
+      if (isSidewalkPaverMaterial(materialNames)) {
+        applySidewalkPaverMaterial(child);
+        return;
+      }
+
+      warmNonSkyMaterial(child);
+
+      if (isRoadMesh(child)) {
+        applyRoadColor(child);
+      }
+
+      const colliderBox = makeColliderBox(child);
+
+      if (!colliderBox) return;
+
+      if (isColliderMesh(child)) {
+        child.visible = false;
+        child.material = new THREE.MeshBasicMaterial({ visible: false });
+        colliders.push(colliderBox);
+        return;
+      }
+
+      if (
+        name.includes("road") ||
+        name.includes("path") ||
+        name.includes("walk") ||
+        name.includes("grass")
+      ) return;
+
+      fallbackColliders.push(colliderBox);
+    });
+
+    if (colliders.length === 0) {
+      colliders.push(...fallbackColliders);
+    }
+
+    /* SPAWN */
+    const spawn = getFrontGateSpawn(model);
+    controls.getObject().position.copy(spawn.position);
+    controls.getObject().lookAt(spawn.lookTarget);
+    camera.lookAt(spawn.lookTarget);
+
+    document.getElementById("info").textContent =
+      "Loaded successfully | Camera: " + CAMERA_HEIGHT + " | Colliders: " + colliders.length;
+
+  },
+
+  (xhr) => {
+
+    const percent = xhr.total
+      ? Math.round((xhr.loaded / xhr.total) * 100)
+      : 0;
+
+    document.getElementById("info").textContent =
+      "Loading... " + percent + "%";
+  },
+
+  (error) => {
+
+    console.error("GLB ERROR:", error);
+
+    document.getElementById("info").textContent =
+      "Failed loading GLB: " + (error?.message || "check file path / Live Server folder");
+  }
+);
+
+/* =========================
+MOVEMENT
+========================= */
+
+const dir = new THREE.Vector3();
+const forward = new THREE.Vector3();
+const right = new THREE.Vector3();
+
+const SPEED = 0.18;
+
+function movePlayer() {
+
+  const obj = controls.getObject();
+
+  dir.set(0, 0, 0);
+
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
+
+  right.crossVectors(forward, camera.up).normalize();
+
+  if (keys["KeyW"]) dir.add(forward);
+  if (keys["KeyS"]) dir.sub(forward);
+  if (keys["KeyA"]) dir.sub(right);
+  if (keys["KeyD"]) dir.add(right);
+
+  if (dir.lengthSq() === 0) return;
+
+  dir.normalize().multiplyScalar(SPEED);
+
+  const next = obj.position.clone();
+
+  next.x += dir.x;
+  if (!hitsWall(next)) obj.position.x = next.x;
+
+  next.copy(obj.position);
+  next.z += dir.z;
+  if (!hitsWall(next)) obj.position.z = next.z;
+
+  obj.position.y = CAMERA_HEIGHT;
+}
+
+/* =========================
+LOOP
+========================= */
+
+function animate() {
   requestAnimationFrame(animate);
-
   movePlayer();
-
-  const pos = controls.getObject().position;
-  update(pos);
-
   renderer.render(scene, camera);
 }
+
 animate();
 
-/* ================= RESIZE ================= */
+/* =========================
+RESIZE
+========================= */
+
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 
 </script>

@@ -2,206 +2,122 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<!-- IMPORTANT FOR MOBILE VIEW -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>MSU-MCEST AR Campus Tour</title>
-
+<title>MSU-MCEST AR Campus Guide</title>
+<script src="orientation-lock.js" defer></script>
 <style>
-* {
-  box-sizing: border-box;
+:root {
+  --ink: #f8fafc;
+  --muted: #cbd5e1;
+  --line: rgba(255,255,255,.18);
+  --panel: rgba(8, 19, 32, .72);
+  --admin: #1fbf75;
+  --student: #f97316;
 }
-
-html, body {
-  margin: 0;
-  height: 100%;
-  font-family: "Segoe UI", Arial, sans-serif;
-}
-
-/* NAVBAR */
-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  padding: 0 40px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  z-index: 10;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(6px);
-}
-
-nav a {
-  color: #fff;
-  text-decoration: none;
-  margin-left: 25px;
-  padding: 8px 14px;
-  border-radius: 6px;
-}
-
-/* BACKGROUND */
-.slideshow {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-}
-
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); }
+body { display: grid; place-items: center; padding: 28px; background: #09111d; }
+.slides, .slides::after { position: fixed; inset: 0; z-index: -2; }
+.slides::after { content: ""; z-index: 1; background: linear-gradient(90deg, rgba(4,9,16,.86), rgba(4,9,16,.48)); }
 .slide {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
   opacity: 0;
-  transition: opacity 1.2s ease-in-out;
+  transition: opacity 900ms ease;
 }
-
-.slide.active {
-  opacity: 1;
-}
-
-.overlay-bg {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: -1;
-}
-
-/* CENTER LAYOUT */
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-top: 60px;
-}
-
-/* CARD (DESKTOP DEFAULT) */
-.selection-card {
-  width: 360px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 18px;
-  padding: 45px 35px;
-  text-align: center;
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255,255,255,0.15);
-}
-
-.selection-card h2 {
-  margin-bottom: 35px;
-  font-size: 26px;
-  color: #fff;
-}
-
-/* BUTTONS */
-.selection-card a {
-  display: block;
-  width: 100%;
-  padding: 14px 0;
-  margin-bottom: 18px;
+.slide.active { opacity: 1; }
+main { width: min(900px, 100%); }
+.brand { margin-bottom: 28px; }
+.brand p { margin: 0 0 8px; color: var(--muted); font-weight: 800; letter-spacing: .08em; font-size: 12px; text-transform: uppercase; }
+h1 { margin: 0; max-width: 760px; font-size: clamp(36px, 7vw, 74px); line-height: .96; letter-spacing: 0; }
+.choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.choice {
+  min-height: 190px;
+  border: 1px solid var(--line);
   border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--ink);
   text-decoration: none;
-  font-weight: 600;
-  color: #fff;
-  transition: 0.3s;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 70px rgba(0,0,0,.28);
 }
-
-.selection-card a.admin {
-  background: rgba(85, 107, 47, 0.8);
+.choice strong { font-size: 27px; }
+.choice span { color: var(--muted); line-height: 1.45; margin-top: 10px; display: block; }
+.choice b {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  align-self: flex-end;
+  color: #07111d;
 }
-
-.selection-card a.admin:hover {
-  background: rgba(59, 79, 32, 0.9);
-}
-
-.selection-card a.guest {
-  background: rgba(160, 82, 45, 0.8);
-}
-
-.selection-card a.guest:hover {
-  background: rgba(123, 63, 31, 0.9);
-}
-
-.footer-text {
-  margin-top: 25px;
+.admin b { background: var(--admin); }
+.student b { background: var(--student); }
+.footer {
+  margin-top: 18px;
+  color: var(--muted);
   font-size: 13px;
-  color: #ddd;
 }
-
-/* ========================= */
-/* 📱 MOBILE + TABLET FIX */
-/* ========================= */
-
-@media (max-width: 768px) {
-
-  nav {
-    justify-content: center;
-    padding: 0;
-  }
-
-  nav a {
-    margin-left: 10px;
-    margin-right: 10px;
-    font-size: 14px;
-  }
-
-  /* CARD FULL WIDTH ON MOBILE */
-  .selection-card {
-    width: 90%;
-    padding: 25px;
-  }
-
-  .selection-card h2 {
-    font-size: 20px;
-  }
-
-  .selection-card a {
-    font-size: 15px;
-    padding: 12px 0;
-  }
+@media (max-width: 700px) {
+  body { place-items: end center; padding: 18px; }
+  .choices { grid-template-columns: 1fr; }
+  .choice { min-height: 150px; }
 }
-
 </style>
 </head>
-
 <body>
-
-
-
-<!-- BACKGROUND -->
-<div class="slideshow">
-  <div class="slide active" style="background-image:url('images/building1.jpg')"></div>
-  <div class="slide" style="background-image:url('images/building2.jpg')"></div>
-  <div class="slide" style="background-image:url('images/building3.jpg')"></div>
+<div class="slides" aria-hidden="true">
+  <div class="slide active" style="background-image:url('images/1background.png')"></div>
+  <div class="slide" style="background-image:url('images/2background.png')"></div>
+  <div class="slide" style="background-image:url('images/3background.png')"></div>
+  <div class="slide" style="background-image:url('images/4background.png')"></div>
+  <div class="slide" style="background-image:url('images/5background.png')"></div>
+  <div class="slide" style="background-image:url('images/6background.png')"></div>
 </div>
 
-<div class="overlay-bg"></div>
+<main>
+  <section class="brand">
+    <p>MSU-MCEST AR Campus Guide</p>
+    <h1>Select your access role.</h1>
+  </section>
 
-<!-- CARD -->
-<div class="selection-card">
-  <h2>Select Access</h2>
+  <section class="choices" aria-label="Role selection">
+    <a class="choice admin" href="login.html">
+      <div>
+        <strong>Administrator</strong>
+        <span>Log in to manage buildings, marker payloads, route notes, and system readiness.</span>
+      </div>
+      <b aria-hidden="true">></b>
+    </a>
 
-  <a href="admin.html" class="admin">Administrator</a>
-  <a href="student.html" class="guest">Student / Guest</a>
+    <a class="choice student" href="student.html">
+      <div>
+        <strong>Student / Guest</strong>
+        <span>Open the campus tour, navigation guide, or printable building markers.</span>
+      </div>
+      <b aria-hidden="true">></b>
+    </a>
+  </section>
 
-  <div class="footer-text">
-    MSU-MCEST AR Campus Tour System
-  </div>
-</div>
+  <div class="footer">Web-based AR campus tour with marker navigation, live tracking, and ar_campus database support.</div>
+</main>
 
-<!-- SLIDESHOW -->
 <script>
-  const slides = document.querySelectorAll('.slide');
-  let current = 0;
-
-  setInterval(() => {
-    slides[current].classList.remove('active');
-    current = (current + 1) % slides.length;
-    slides[current].classList.add('active');
-  }, 3000);
+const slides = document.querySelectorAll(".slide");
+let current = 0;
+setInterval(() => {
+  slides[current].classList.remove("active");
+  current = (current + 1) % slides.length;
+  slides[current].classList.add("active");
+}, 3200);
 </script>
-
 </body>
 </html>

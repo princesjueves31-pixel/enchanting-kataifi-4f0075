@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSU-MCEST Navigation Markers</title>
+<script src="orientation-lock.js" defer></script>
+<style>
+:root {
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --accent: #0f766e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: var(--ink);
+  background: #f8fafc;
+}
+header {
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+p { color: var(--muted); margin: 8px 0 0; max-width: 760px; line-height: 1.45; }
+a, button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: var(--ink);
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+main {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.marker {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  break-inside: avoid;
+}
+.marker h2 { margin: 0 0 10px; font-size: 18px; letter-spacing: 0; }
+.marker img {
+  width: 190px;
+  height: 190px;
+  image-rendering: pixelated;
+}
+.payload {
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  word-break: break-word;
+}
+@media print {
+  header { display: none; }
+  body { background: white; }
+  main { grid-template-columns: repeat(2, 1fr); padding: 0; }
+  .marker { border: 1px solid #111827; border-radius: 0; min-height: 310px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>MSU-MCEST Building Markers</h1>
+    <p>Print these markers and place one at the matching building or corner. The navigation page scans the QR value and sets the starting point automatically.</p>
+  </div>
+  <div>
+    <a href="index.html">Home</a>
+    <button onclick="print()">Print</button>
+  </div>
+</header>
+<main id="markers"></main>
+
+<script>
+const places = [
+  { id: "gate", name: "Main Gate / Entrance" },
+  { id: "admin", name: "Administration Building" },
+  { id: "dcs", name: "Department of Computer Science" },
+  { id: "dhess", name: "DHESS Area" },
+  { id: "secondary", name: "Secondary Department" },
+  { id: "hotel", name: "Dr. Magadapa A. Ringia Hotel" },
+  { id: "halal", name: "Halal Food Innovation Center / DTI-SSF" },
+  { id: "kitchen", name: "Kitchen Laboratory" },
+  { id: "tesda", name: "TESDA Training and Assessment Center" }
+];
+
+const markerRoot = document.getElementById("markers");
+places.forEach(place => {
+  const payload = "msu-mcest:" + place.id;
+  const card = document.createElement("section");
+  card.className = "marker";
+  card.innerHTML = `
+    <h2>${place.name}</h2>
+    <img alt="${place.name} QR marker" src="markers/${place.id}.png">
+    <div class="payload">${payload}</div>
+  `;
+  markerRoot.appendChild(card);
+});
+</script>
+</body>
+</html>

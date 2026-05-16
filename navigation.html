@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AR Navigation | MSU-MCEST</title>
+<script src="orientation-lock.js" defer></script>
+<style>
+:root {
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --panel: rgba(7, 18, 31, .82);
+  --accent: #f97316;
+  --ok: #22c55e;
+  --line: rgba(255,255,255,.18);
+  --warn: #facc15;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: "Segoe UI", Arial, sans-serif; color: var(--text); background: #07121f; }
+body { overflow: hidden; }
+video, .camera-fallback {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: radial-gradient(circle at 50% 35%, #28445d, #07121f 64%);
+}
+.camera-fallback { display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
+.shade { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.68), transparent 28%, transparent 60%, rgba(0,0,0,.78)); pointer-events: none; }
+.topbar {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  z-index: 5;
+}
+.pill, button, select {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  min-height: 42px;
+}
+.pill { padding: 10px 12px; font-size: 13px; backdrop-filter: blur(12px); }
+.home { color: var(--text); text-decoration: none; padding: 10px 12px; }
+.panel {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 4;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  backdrop-filter: blur(14px);
+}
+.step { display: none; }
+.step.active { display: block; }
+h1, h2 { margin: 0 0 10px; letter-spacing: 0; }
+h1 { font-size: 22px; }
+h2 { font-size: 18px; }
+p { margin: 0 0 12px; color: var(--muted); line-height: 1.4; }
+.row { display: grid; grid-template-columns: 1fr; gap: 9px; }
+select, button { width: 100%; padding: 11px 12px; font: inherit; }
+button { background: #17413d; font-weight: 700; cursor: pointer; }
+button.secondary { background: rgba(15,23,42,.72); }
+button.orange { background: var(--accent); color: #111827; border-color: rgba(255,255,255,.35); }
+.scan-frame {
+  position: fixed;
+  top: 19%;
+  left: 50%;
+  width: min(76vw, 360px);
+  aspect-ratio: 1.35;
+  transform: translateX(-50%);
+  border: 3px solid rgba(255,255,255,.88);
+  border-radius: 8px;
+  z-index: 2;
+  box-shadow: 0 0 0 999px rgba(0,0,0,.18);
+}
+.scan-frame::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 2px;
+  background: var(--ok);
+  box-shadow: 0 0 16px var(--ok);
+  animation: scan 1.8s ease-in-out infinite;
+}
+@keyframes scan {
+  0%,100% { transform: translateY(-58px); }
+  50% { transform: translateY(58px); }
+}
+.arrow-layer {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  z-index: 2;
+  pointer-events: none;
+}
+.arrow-layer.active { display: grid; }
+.arrow {
+  width: min(55vw, 250px);
+  height: min(55vw, 250px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(249,115,22,.18);
+  border: 2px solid rgba(249,115,22,.7);
+  font-size: min(27vw, 130px);
+  line-height: 1;
+  text-shadow: 0 8px 26px rgba(0,0,0,.6);
+}
+.arrow.left { transform: rotate(-90deg); }
+.arrow.right { transform: rotate(90deg); }
+.arrow.straight { transform: rotate(0deg); }
+.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 9px; }
+.stat small { color: var(--muted); display: block; margin-bottom: 3px; }
+.notice {
+  display: none;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(250,204,21,.5);
+  border-radius: 8px;
+  background: rgba(250,204,21,.12);
+  color: #fef9c3;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.notice.active { display: block; }
+.hidden { display: none; }
+@media (min-width: 760px) {
+  .panel { width: 430px; left: 18px; right: auto; }
+  .topbar { left: 18px; right: 18px; }
+}
+</style>
+</head>
+<body>
+<video id="camera" autoplay playsinline muted></video>
+<div id="fallback" class="camera-fallback hidden">Camera preview is unavailable. The navigation controls still work in demo mode.</div>
+<div class="shade"></div>
+<div id="scanFrame" class="scan-frame"></div>
+<div id="arrowLayer" class="arrow-layer">
+  <div id="arrow" class="arrow straight">&uarr;</div>
+</div>
+
+<header class="topbar">
+  <span id="modeText" class="pill">Scan starting building</span>
+  <a class="pill home" href="index.html">Home</a>
+</header>
+
+<section class="panel">
+  <div id="notice" class="notice"></div>
+  <div id="stepScan" class="step active">
+    <h1>Scan Building</h1>
+    <p>Point the phone camera at a building marker. If no marker is available, GPS will choose the nearest campus point.</p>
+    <div class="row">
+      <select id="startSelect" aria-label="Detected starting building"></select>
+      <button id="autoScanBtn">Auto Scan Marker</button>
+      <button id="nearestBtn">Use Nearest GPS Point</button>
+      <button id="scanBtn" class="orange">Use This Building</button>
+    </div>
+  </div>
+
+  <div id="stepDestination" class="step">
+    <h2>Choose Destination</h2>
+    <p>The route will start from the scanned building. Pick one destination for the AR arrow to guide you.</p>
+    <div class="row">
+      <select id="destinationSelect" aria-label="Destination building"></select>
+      <button id="startNavBtn" class="orange">Start AR Guide</button>
+      <button id="rescanBtn" class="secondary">Scan Again</button>
+    </div>
+  </div>
+
+  <div id="stepGuide" class="step">
+    <h2 id="guideTitle">Follow Arrow</h2>
+    <p id="guideHint">Keep the phone upright and follow the single arrow.</p>
+    <div class="status-grid">
+      <div class="stat"><small>Direction</small><strong id="turnText">Straight</strong></div>
+      <div class="stat"><small>Distance</small><strong id="distanceText">-- m</strong></div>
+      <div class="stat"><small>GPS</small><strong id="gpsText">Waiting</strong></div>
+    </div>
+    <div class="row">
+      <button id="nextNodeBtn">Manual Next Corner</button>
+      <button id="stopBtn" class="secondary">Stop Navigation</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const STORAGE_KEY = "msuMcestBuildings";
+const API_BUILDINGS = "api/buildings.php";
+const defaultPlaces = [
+  { id: "gate", name: "Main Gate / Entrance", lat: 8.15626, lng: 123.95448 },
+  { id: "admin", name: "Administration Building", lat: 8.15648, lng: 123.95437 },
+  { id: "dcs", name: "Department of Computer Science", lat: 8.15670, lng: 123.95470 },
+  { id: "dhess", name: "DHESS Area", lat: 8.15686, lng: 123.95431 },
+  { id: "secondary", name: "Secondary Department", lat: 8.15702, lng: 123.95458 },
+  { id: "hotel", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.15718, lng: 123.95485 },
+  { id: "halal", name: "Halal Food Innovation Center / DTI-SSF", lat: 8.15645, lng: 123.95503 },
+  { id: "kitchen", name: "Kitchen Laboratory", lat: 8.15618, lng: 123.95486 },
+  { id: "tesda", name: "TESDA Training and Assessment Center", lat: 8.15596, lng: 123.95456 }
+];
+
+let places = defaultPlaces;
+
+const routeGraph = {
+  gate: ["admin", "kitchen"],
+  admin: ["gate", "dcs", "dhess"],
+  dcs: ["admin", "halal", "secondary"],
+  dhess: ["admin", "secondary"],
+  secondary: ["dhess", "dcs", "hotel"],
+  hotel: ["secondary", "halal"],
+  halal: ["dcs", "hotel", "kitchen"],
+  kitchen: ["gate", "halal", "tesda"],
+  tesda: ["kitchen"]
+};
+
+const startSelect = document.getElementById("startSelect");
+const destinationSelect = document.getElementById("destinationSelect");
+const stepScan = document.getElementById("stepScan");
+const stepDestination = document.getElementById("stepDestination");
+const stepGuide = document.getElementById("stepGuide");
+const scanFrame = document.getElementById("scanFrame");
+const arrowLayer = document.getElementById("arrowLayer");
+const arrow = document.getElementById("arrow");
+const modeText = document.getElementById("modeText");
+const turnText = document.getElementById("turnText");
+const distanceText = document.getElementById("distanceText");
+const gpsText = document.getElementById("gpsText");
+const guideTitle = document.getElementById("guideTitle");
+const guideHint = document.getElementById("guideHint");
+const notice = document.getElementById("notice");
+let currentPlace = places[0];
+let destination = places[1];
+let route = [];
+let routeIndex = 0;
+let heading = 0;
+let currentGps = null;
+let watchId = null;
+let markerDetector = null;
+let markerScanTimer = null;
+let cameraStream = null;
+let booted = false;
+
+function loadPlaces() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(saved) && saved.length) {
+      return saved
+        .filter(place => place.id && place.name && Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)))
+        .map(place => ({
+          id: place.id,
+          name: place.name,
+          lat: Number(place.lat),
+          lng: Number(place.lng)
+        }));
+    }
+  } catch (error) {}
+  return defaultPlaces;
+}
+
+async function loadPlacesFromBackend() {
+  try {
+    const response = await fetch(API_BUILDINGS);
+    const data = await response.json();
+    if (!response.ok || data.ok === false || !Array.isArray(data.buildings)) {
+      throw new Error(data.message || "Database unavailable.");
+    }
+    places = data.buildings
+      .filter(place => place.id && place.name && Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)))
+      .map(place => ({
+        id: place.id,
+        name: place.name,
+        lat: Number(place.lat),
+        lng: Number(place.lng)
+      }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
+    modeText.textContent = "ar_campus data loaded";
+  } catch (error) {
+    places = loadPlaces();
+    modeText.textContent = "Local navigation data";
+  }
+  currentPlace = places[0] || defaultPlaces[0];
+  destination = places[1] || currentPlace;
+}
+
+function setNotice(message) {
+  notice.textContent = message;
+  notice.classList.toggle("active", Boolean(message));
+}
+
+function fillSelects() {
+  startSelect.innerHTML = "";
+  destinationSelect.innerHTML = "";
+  places.forEach(place => {
+    startSelect.add(new Option(place.name, place.id));
+    destinationSelect.add(new Option(place.name, place.id));
+  });
+  destinationSelect.value = findPlace("dcs") ? "dcs" : places[1]?.id || places[0]?.id;
+}
+
+async function startCamera() {
+  if (!window.isSecureContext) {
+    setNotice("Camera, GPS, and compass need HTTPS on a phone. Use a hosted HTTPS URL, or test on this computer with localhost.");
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    cameraStream = stream;
+    document.getElementById("camera").srcObject = stream;
+  } catch (error) {
+    document.getElementById("camera").classList.add("hidden");
+    document.getElementById("fallback").classList.remove("hidden");
+    modeText.textContent = "Camera unavailable";
+  }
+}
+
+function showStep(step) {
+  [stepScan, stepDestination, stepGuide].forEach(el => el.classList.remove("active"));
+  step.classList.add("active");
+}
+
+function findPlace(id) {
+  return places.find(place => place.id === id);
+}
+
+function routeBetween(startId, endId) {
+  if (!routeGraph[startId] || !routeGraph[endId]) {
+    return [findPlace(startId), findPlace(endId)].filter(Boolean);
+  }
+  const queue = [[startId]];
+  const seen = new Set([startId]);
+  while (queue.length) {
+    const path = queue.shift();
+    const last = path[path.length - 1];
+    if (last === endId) return path.map(findPlace);
+    (routeGraph[last] || []).forEach(next => {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push([...path, next]);
+      }
+    });
+  }
+  return [findPlace(startId), findPlace(endId)];
+}
+
+function bearing(from, to) {
+  const toRad = deg => deg * Math.PI / 180;
+  const toDeg = rad => rad * 180 / Math.PI;
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function meters(a, b) {
+  const earth = 6371000;
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(earth * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+}
+
+function nearestPlaceTo(point) {
+  return places
+    .map(place => ({ place, distance: meters(point, place) }))
+    .sort((a, b) => a.distance - b.distance)[0];
+}
+
+function normalize(angle) {
+  return ((angle + 540) % 360) - 180;
+}
+
+function updateArrow() {
+  const next = route[Math.min(routeIndex + 1, route.length - 1)];
+  const origin = currentGps || currentPlace;
+  if (next && next.id === currentPlace.id && routeIndex < route.length - 1) {
+    routeIndex += 1;
+    updateArrow();
+    return;
+  }
+  if (!next || next.id === currentPlace.id) {
+    arrow.className = "arrow straight";
+    turnText.textContent = "Arrived";
+    distanceText.textContent = "0 m";
+    guideHint.textContent = "You are at the destination.";
+    return;
+  }
+
+  const distanceToNext = meters(origin, next);
+  if (currentGps && distanceToNext < 12 && routeIndex < route.length - 1) {
+    routeIndex += 1;
+    currentPlace = route[routeIndex];
+    updateArrow();
+    return;
+  }
+
+  const targetBearing = bearing(origin, next);
+  const diff = normalize(targetBearing - heading);
+  let direction = "straight";
+  if (diff > 35) direction = "right";
+  if (diff < -35) direction = "left";
+  arrow.className = "arrow " + direction;
+  turnText.textContent = direction === "straight" ? "Straight" : direction === "right" ? "Right" : "Left";
+  distanceText.textContent = distanceToNext + " m";
+  guideHint.textContent = "Next corner: " + next.name;
+}
+
+function startRealtimeTracking() {
+  if (!navigator.geolocation || watchId !== null) return;
+  watchId = navigator.geolocation.watchPosition(position => {
+    currentGps = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude
+    };
+    const nearest = nearestPlaceTo(currentGps);
+    gpsText.textContent = Math.round(position.coords.accuracy) + " m";
+    if (nearest && nearest.distance < 25 && (!route.length || route.some(place => place.id === nearest.place.id))) {
+      currentPlace = nearest.place;
+      startSelect.value = currentPlace.id;
+    }
+    updateArrow();
+  }, () => {
+    gpsText.textContent = "Off";
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 1000,
+    timeout: 12000
+  });
+}
+
+async function requestCompass() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result !== "granted") {
+        setNotice("Compass permission was not granted. The arrow can still update with GPS, but turns may be less accurate.");
+      }
+    } catch (error) {
+      setNotice("Compass permission could not be requested in this browser.");
+    }
+  }
+}
+
+async function startGuide() {
+  await requestCompass();
+  destination = findPlace(destinationSelect.value);
+  route = routeBetween(currentPlace.id, destination.id);
+  routeIndex = 0;
+  guideTitle.textContent = currentPlace.name + " to " + destination.name;
+  scanFrame.style.display = "none";
+  arrowLayer.classList.add("active");
+  modeText.textContent = "AR navigation active";
+  showStep(stepGuide);
+  startRealtimeTracking();
+  updateArrow();
+}
+
+function useNearestGpsPoint() {
+  if (!navigator.geolocation) {
+    modeText.textContent = "GPS is not available";
+    return;
+  }
+  modeText.textContent = "Finding nearest GPS point...";
+  navigator.geolocation.getCurrentPosition(position => {
+    currentGps = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude
+    };
+    const nearest = nearestPlaceTo(currentGps);
+    if (nearest) {
+      currentPlace = nearest.place;
+      startSelect.value = currentPlace.id;
+      modeText.textContent = "Nearest point: " + currentPlace.name + " (" + nearest.distance + " m)";
+      showStep(stepDestination);
+    }
+  }, () => {
+    modeText.textContent = "GPS permission denied or unavailable";
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 1000,
+    timeout: 12000
+  });
+}
+
+async function startMarkerScan() {
+  if (!("BarcodeDetector" in window)) {
+    modeText.textContent = "Marker scan unsupported, trying GPS";
+    useNearestGpsPoint();
+    return;
+  }
+  if (!markerDetector) {
+    markerDetector = new BarcodeDetector({ formats: ["qr_code"] });
+  }
+  const video = document.getElementById("camera");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  modeText.textContent = "Scanning marker...";
+  clearInterval(markerScanTimer);
+  markerScanTimer = setInterval(async () => {
+    if (!video.videoWidth || !video.videoHeight) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      const codes = await markerDetector.detect(canvas);
+      const rawValue = codes[0]?.rawValue || "";
+      const markerId = rawValue.replace("msu-mcest:", "").trim().toLowerCase();
+      const matched = findPlace(markerId);
+      if (matched) {
+        clearInterval(markerScanTimer);
+        currentPlace = matched;
+        startSelect.value = matched.id;
+        modeText.textContent = "Scanned: " + matched.name;
+        showStep(stepDestination);
+      }
+    } catch (error) {
+      clearInterval(markerScanTimer);
+      modeText.textContent = "Marker scan stopped";
+    }
+  }, 700);
+}
+
+async function bootNavigation() {
+  if (booted) return;
+  booted = true;
+  await loadPlacesFromBackend();
+  fillSelects();
+  await startCamera();
+  startRealtimeTracking();
+  setTimeout(() => {
+    if (stepScan.classList.contains("active")) startMarkerScan();
+  }, 900);
+}
+
+window.addEventListener("deviceorientationabsolute", event => {
+  if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
+    updateArrow();
+  }
+});
+window.addEventListener("deviceorientation", event => {
+  if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
+    updateArrow();
+  }
+});
+
+document.getElementById("scanBtn").addEventListener("click", () => {
+  currentPlace = findPlace(startSelect.value);
+  modeText.textContent = "Starting point: " + currentPlace.name;
+  showStep(stepDestination);
+});
+document.getElementById("autoScanBtn").addEventListener("click", startMarkerScan);
+document.getElementById("nearestBtn").addEventListener("click", useNearestGpsPoint);
+document.getElementById("rescanBtn").addEventListener("click", () => {
+  clearInterval(markerScanTimer);
+  scanFrame.style.display = "block";
+  arrowLayer.classList.remove("active");
+  modeText.textContent = "Scan starting building";
+  showStep(stepScan);
+});
+document.getElementById("startNavBtn").addEventListener("click", startGuide);
+document.getElementById("nextNodeBtn").addEventListener("click", () => {
+  if (routeIndex < route.length - 1) {
+    routeIndex += 1;
+    currentPlace = route[routeIndex];
+  }
+  updateArrow();
+});
+document.getElementById("stopBtn").addEventListener("click", () => {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  clearInterval(markerScanTimer);
+  location.href = "index.html";
+});
+
+bootNavigation();
+</script>
+</body>
+</html>

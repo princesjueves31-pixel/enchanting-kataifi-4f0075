@@ -2,227 +2,860 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<!-- MOBILE RESPONSIVE FIX -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Admin Dashboard | MSU-MCEST AR Tour</title>
-
+<title>Admin | MSU-MCEST AR Campus Guide</title>
+<script src="orientation-lock.js" defer></script>
 <style>
-:root{
-  --bg:#0b1220;
-  --panel:#111827;
-  --card:#1f2937;
-  --accent:#22c55e;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
+:root {
+  --bg: #08111d;
+  --panel: rgba(15, 23, 42, .86);
+  --line: rgba(226, 232, 240, .14);
+  --text: #f8fafc;
+  --muted: #a9b7ca;
+  --green: #1fbf75;
+  --orange: #f97316;
+  --red: #ef4444;
+  --blue: #38bdf8;
 }
-
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:Arial, sans-serif;
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; font-family: "Segoe UI", Arial, sans-serif; color: var(--text); background: var(--bg); }
+body {
+  background: linear-gradient(135deg, rgba(31, 191, 117, .16), transparent 32%),
+    radial-gradient(circle at 88% 10%, rgba(249, 115, 22, .18), transparent 28%),
+    #08111d;
 }
-
-body{
-  background:var(--bg);
-  color:var(--text);
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; }
+.shell { min-height: 100vh; display: grid; grid-template-columns: 270px 1fr; }
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 22px;
+  background: rgba(7, 15, 28, .9);
+  border-right: 1px solid var(--line);
+  backdrop-filter: blur(18px);
 }
-
-/* TOP BAR */
-.topbar{
-  height:60px;
-  background:var(--panel);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 20px;
-  position:sticky;
-  top:0;
-  z-index:10;
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--green), var(--orange));
+  color: #07111d;
+  font-weight: 900;
 }
-
-.topbar h1{
-  font-size:18px;
+.brand h1 { margin: 0; font-size: 16px; line-height: 1.18; letter-spacing: 0; }
+.brand span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.nav { display: grid; gap: 8px; }
+.nav button, .quick a {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
-
-.topbar a{
-  color:white;
-  text-decoration:none;
-  background:crimson;
-  padding:8px 14px;
-  border-radius:6px;
+.nav button.active, .nav button:hover, .quick a:hover {
+  color: var(--text);
+  background: rgba(255,255,255,.07);
+  border-color: var(--line);
 }
-
-/* LAYOUT */
-.container{
-  display:flex;
-  min-height:100vh;
+.quick { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.logout {
+  margin-top: 24px;
+  width: 100%;
+  border: 1px solid rgba(239, 68, 68, .35);
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: #fee2e2;
+  background: rgba(239, 68, 68, .12);
+  cursor: pointer;
 }
-
-/* SIDEBAR */
-.sidebar{
-  width:240px;
-  background:var(--panel);
-  padding:20px;
+.main { padding: 22px; }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
 }
-
-.sidebar h3{
-  margin-bottom:15px;
-  color:var(--muted);
-  font-size:14px;
+.eyebrow { margin: 0 0 6px; color: var(--blue); font-weight: 800; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.topbar h2 { margin: 0; font-size: clamp(25px, 4vw, 42px); letter-spacing: 0; }
+.topbar p { margin: 8px 0 0; max-width: 780px; color: var(--muted); line-height: 1.45; }
+.status-pill {
+  border: 1px solid rgba(31, 191, 117, .35);
+  border-radius: 999px;
+  padding: 10px 13px;
+  color: #dcfce7;
+  background: rgba(31, 191, 117, .12);
+  white-space: nowrap;
 }
-
-.sidebar a{
-  display:block;
-  color:var(--text);
-  text-decoration:none;
-  padding:10px;
-  margin-bottom:8px;
-  border-radius:6px;
-  background:#1f2937;
-  transition:0.3s;
+.grid { display: grid; gap: 14px; }
+.metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 14px; }
+.card, .panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.22);
 }
-
-.sidebar a:hover{
-  background:#374151;
+.card { padding: 16px; }
+.card small { color: var(--muted); display: block; margin-bottom: 7px; }
+.card strong { font-size: 28px; }
+.card em { display: block; margin-top: 8px; color: var(--muted); font-style: normal; font-size: 13px; }
+.panel { padding: 18px; margin-bottom: 14px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.panel h3 { margin: 0; font-size: 19px; letter-spacing: 0; }
+.panel p { color: var(--muted); line-height: 1.45; margin: 6px 0 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  background: rgba(255,255,255,.07);
+  cursor: pointer;
 }
-
-/* MAIN */
-.main{
-  flex:1;
-  padding:25px;
+.btn.primary { background: var(--orange); color: #111827; border-color: transparent; font-weight: 800; }
+.btn.good { background: rgba(31,191,117,.18); border-color: rgba(31,191,117,.35); }
+.btn.danger { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.35); color: #fecaca; }
+.split { display: grid; grid-template-columns: minmax(320px, .9fr) 1.3fr; gap: 14px; align-items: start; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.field { display: grid; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+label { color: var(--muted); font-size: 13px; }
+input, textarea, select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 11px;
+  color: var(--text);
+  background: rgba(2, 6, 23, .55);
+  outline: none;
 }
-
-.cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:15px;
-  margin-top:15px;
+textarea { min-height: 86px; resize: vertical; }
+input:focus, textarea:focus, select:focus { border-color: rgba(56, 189, 248, .75); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+td { color: #e5edf8; font-size: 14px; }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: rgba(56, 189, 248, .13);
+  color: #bae6fd;
 }
-
-.card{
-  background:var(--card);
-  padding:20px;
-  border-radius:10px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+.tag.ok { background: rgba(31,191,117,.15); color: #bbf7d0; }
+.tag.warn { background: rgba(250,204,21,.14); color: #fef08a; }
+.section { display: none; }
+.section.active { display: block; }
+.sources a { color: #93c5fd; text-decoration: underline; text-underline-offset: 3px; }
+.route-list, .marker-list { display: grid; gap: 9px; }
+.route-item, .marker-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.04);
 }
-
-.card h2{
-  font-size:16px;
-  margin-bottom:8px;
+.route-item span, .marker-item span { color: var(--muted); }
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  max-width: 360px;
+  display: none;
+  border: 1px solid rgba(31,191,117,.4);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #dcfce7;
+  background: rgba(6, 78, 59, .92);
+  box-shadow: 0 18px 50px rgba(0,0,0,.28);
 }
-
-.card p{
-  color:var(--muted);
-  font-size:13px;
+.toast.active { display: block; }
+@media (max-width: 980px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { height: auto; position: static; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split { grid-template-columns: 1fr; }
 }
-
-.highlight{
-  color:var(--accent);
-  font-weight:bold;
-}
-
-/* ========================= */
-/* 📱 MOBILE RESPONSIVE FIX */
-/* ========================= */
-@media (max-width: 768px){
-
-  /* STACK LAYOUT */
-  .container{
-    flex-direction:column;
-  }
-
-  /* SIDEBAR BECOMES TOP MENU */
-  .sidebar{
-    width:100%;
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    gap:10px;
-  }
-
-  .sidebar a{
-    margin-bottom:0;
-    font-size:14px;
-    padding:8px 10px;
-  }
-
-  .sidebar h3{
-    width:100%;
-    text-align:center;
-  }
-
-  /* TOPBAR TEXT SMALLER */
-  .topbar h1{
-    font-size:14px;
-  }
-
-  /* CARDS STACK BETTER */
-  .main{
-    padding:15px;
-  }
+@media (max-width: 620px) {
+  .main, .sidebar { padding: 15px; }
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .metrics, .form-grid { grid-template-columns: 1fr; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 820px; }
 }
 </style>
-
 </head>
-
 <body>
-
-<!-- TOP BAR -->
-<div class="topbar">
-  <h1>MSU-MCEST AR Campus Tour | Admin Panel</h1>
-  <a href="role_select.html">Logout</a>
-</div>
-
-<div class="container">
-
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <h3>MANAGEMENT</h3>
-
-    <a href="#">Dashboard</a>
-    <a href="#">Buildings</a>
-    <a href="#">Add Building</a>
-    <a href="#">Edit Building</a>
-    <a href="#">Remove Building</a>
-    <a href="#">Staff List</a>
-  </div>
-
-  <!-- MAIN CONTENT -->
-  <div class="main">
-
-    <h2>Dashboard Overview</h2>
-    <p style="color:#9ca3af;">Welcome back, Admin. Manage your AR Campus Tour system below.</p>
-
-    <div class="cards">
-
-      <div class="card">
-        <h2>Total Buildings</h2>
-        <p class="highlight">12</p>
+<script>
+if (sessionStorage.getItem("adminLoggedIn") !== "true") {
+  location.replace("login.html");
+}
+</script>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">AR</div>
+      <div>
+        <h1>MSU-MCEST Guide</h1>
+        <span>Admin Control Center</span>
       </div>
-
-      <div class="card">
-        <h2>Active Users</h2>
-        <p class="highlight">35</p>
-      </div>
-
-      <div class="card">
-        <h2>AR Models</h2>
-        <p class="highlight">8</p>
-      </div>
-
-      <div class="card">
-        <h2>System Status</h2>
-        <p class="highlight">Online</p>
-      </div>
-
     </div>
 
-  </div>
+    <nav class="nav" aria-label="Admin navigation">
+      <button class="active" data-section="dashboard">Dashboard</button>
+      <button data-section="buildings">Buildings</button>
+      <button data-section="staff">Staff</button>
+      <button data-section="routes">Routes</button>
+      <button data-section="markers">Markers</button>
+      <button data-section="feedback">Feedback</button>
+      <button data-section="sources">Online Info</button>
+    </nav>
 
+    <div class="quick">
+      <a href="index.html">Open Home</a>
+      <a href="navigation.html">Open Navigation</a>
+      <a href="tour.html">Open Campus Tour</a>
+      <a href="markers.html">Print Markers</a>
+    </div>
+
+    <button class="logout" id="logoutBtn">Log Out</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Thesis Prototype</p>
+        <h2>AR Campus Navigation Admin</h2>
+        <p>Manage building records, marker payloads, route notes, and feedback for the MSU-MCEST campus guide. Production data is stored in the ar_campus MySQL database.</p>
+      </div>
+      <div class="status-pill" id="secureStatus">Checking browser...</div>
+    </header>
+
+    <section id="dashboard" class="section active">
+      <div class="grid metrics">
+        <div class="card"><small>Total Buildings</small><strong id="totalBuildings">0</strong><em>Navigation records</em></div>
+        <div class="card"><small>Marker Assets</small><strong id="markerCount">0</strong><em>Local QR markers</em></div>
+        <div class="card"><small>Verified Info</small><strong id="verifiedCount">0</strong><em>With online/public source</em></div>
+        <div class="card"><small>Tracking</small><strong>GPS</strong><em>Accuracy depends on on-site calibration</em></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>System Readiness</h3>
+            <p>The frontend can run now. Accurate navigation still requires verified marker placement and campus GPS calibration.</p>
+          </div>
+          <button class="btn primary" onclick="location.href='navigation.html'">Test Navigation</button>
+        </div>
+        <div class="grid metrics">
+          <div class="card"><small>Camera</small><strong id="cameraStatus">Checking</strong><em>Needed for marker scan</em></div>
+          <div class="card"><small>Location</small><strong id="gpsStatus">Checking</strong><em>Needed for live tracking</em></div>
+          <div class="card"><small>Compass</small><strong id="compassStatus">Checking</strong><em>Needed for arrow direction</em></div>
+          <div class="card"><small>Storage</small><strong id="storageStatus">Checking</strong><em>Needed for admin edits</em></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="buildings" class="section">
+      <div class="split">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3 id="formTitle">Add Building</h3>
+              <p>Use verified coordinates when available. Marker ID should match the QR payload after <strong>msu-mcest:</strong>.</p>
+            </div>
+          </div>
+          <form id="buildingForm" class="form-grid">
+            <input type="hidden" id="recordId">
+            <div class="field">
+              <label for="buildingName">Building name</label>
+              <input id="buildingName" required>
+            </div>
+            <div class="field">
+              <label for="markerId">Marker ID</label>
+              <input id="markerId" required placeholder="example: dcs">
+            </div>
+            <div class="field">
+              <label for="lat">Latitude</label>
+              <input id="lat" type="number" step="0.000001" required>
+            </div>
+            <div class="field">
+              <label for="lng">Longitude</label>
+              <input id="lng" type="number" step="0.000001" required>
+            </div>
+            <div class="field">
+              <label for="category">Category</label>
+              <select id="category">
+                <option>Academic</option>
+                <option>Administration</option>
+                <option>Campus Entry</option>
+                <option>Training Facility</option>
+                <option>Hospitality</option>
+                <option>Laboratory</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sourceType">Info status</label>
+              <select id="sourceType">
+                <option>Prototype</option>
+                <option>Public Source</option>
+                <option>On-site Verified</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="description">Building info</label>
+              <textarea id="description" required></textarea>
+            </div>
+            <div class="field full">
+              <label for="sourceUrl">Source URL or note</label>
+              <input id="sourceUrl" placeholder="https://... or on-site note">
+            </div>
+            <div class="field full actions">
+              <button class="btn primary" type="submit">Save Building</button>
+              <button class="btn" type="button" id="clearFormBtn">Clear</button>
+              <button class="btn danger" type="button" id="resetDataBtn">Reset Default Data</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Building Database</h3>
+              <p>These records feed the campus tour and navigation pages through the ar_campus MySQL database and PHP API.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Marker</th>
+                  <th>Coordinates</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="buildingRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="staff" class="section">
+      <div class="split">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3 id="staffFormTitle">Add Staff</h3>
+              <p>Register faculty or staff offices so the campus guide can show office information.</p>
+            </div>
+          </div>
+          <form id="staffForm" class="form-grid">
+            <input type="hidden" id="staffId">
+            <div class="field">
+              <label for="staffName">Name</label>
+              <input id="staffName" required>
+            </div>
+            <div class="field">
+              <label for="staffDepartment">Department</label>
+              <input id="staffDepartment" required>
+            </div>
+            <div class="field">
+              <label for="staffOffice">Office</label>
+              <input id="staffOffice" required>
+            </div>
+            <div class="field">
+              <label for="staffBuilding">Building</label>
+              <select id="staffBuilding"></select>
+            </div>
+            <div class="field full actions">
+              <button class="btn primary" type="submit">Save Staff</button>
+              <button class="btn" type="button" id="clearStaffBtn">Clear</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Staff Directory</h3>
+              <p>Records are saved in the staff table and optionally linked to a building.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Department</th><th>Office</th><th>Building</th><th>Actions</th></tr></thead>
+              <tbody id="staffRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="routes" class="section">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Route Network</h3>
+            <p>Routes are currently prototype walking links. Replace them with measured campus corners for accurate real-time navigation.</p>
+          </div>
+          <button class="btn good" onclick="location.href='navigation.html'">Run Route Test</button>
+        </div>
+        <div class="route-list" id="routeList"></div>
+      </div>
+    </section>
+
+    <section id="markers" class="section">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Marker Inventory</h3>
+            <p>Print and place each QR marker exactly at its matching building or corner. Marker placement affects start-point accuracy.</p>
+          </div>
+          <button class="btn primary" onclick="location.href='markers.html'">Open Marker Sheet</button>
+        </div>
+        <div class="marker-list" id="markerList"></div>
+      </div>
+    </section>
+
+    <section id="feedback" class="section">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>User Feedback</h3>
+            <p>Feedback is stored in the feedback table and linked to a building when a marker is selected.</p>
+          </div>
+          <button class="btn good" id="refreshFeedbackBtn">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Building</th>
+                <th>Comment</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="feedbackRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="sources" class="section">
+      <div class="panel sources">
+        <h3>Online Information Used</h3>
+        <p>Public sources do not provide a complete building-coordinate database. The frontend includes public names/info where available and leaves exact route accuracy for on-site verification.</p>
+        <table>
+          <thead><tr><th>Source</th><th>Useful info</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><a href="https://msumcest.edu.ph/pages/campus_life/campus_map.php" target="_blank" rel="noopener">Official MSU-MCEST campus map</a></td>
+              <td>Confirms MSU-MCEST campus map page, campus gallery, official address, contact, and departments including Computer Science, Hospitality Management, Industrial Technology, TESDA, and others.</td>
+            </tr>
+            <tr>
+              <td><a href="https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" target="_blank" rel="noopener">MHCT Halal compliance article</a></td>
+              <td>Confirms Dr. Magadapa A. Ringia Hotel, DTI-SSF in the Halal Food Innovation Center, Kitchen Laboratory, and TESDA Training and Assessment Center.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 </div>
 
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = "msuMcestBuildings";
+const API_BUILDINGS = "api/buildings.php";
+const API_FEEDBACK = "api/feedback.php";
+const API_STAFF = "api/staff.php";
+const routeGraph = {
+  gate: ["admin", "kitchen"],
+  admin: ["gate", "dcs", "dhess"],
+  dcs: ["admin", "halal", "secondary"],
+  dhess: ["admin", "secondary"],
+  secondary: ["dhess", "dcs", "hotel"],
+  hotel: ["secondary", "halal"],
+  halal: ["dcs", "hotel", "kitchen"],
+  kitchen: ["gate", "halal", "tesda"],
+  tesda: ["kitchen"]
+};
+
+const defaultBuildings = [
+  { id: "gate", name: "Main Gate / Entrance", lat: 8.15626, lng: 123.95448, category: "Campus Entry", status: "Prototype", description: "Primary campus entry point used as a starting reference for the navigation prototype.", source: "Prototype coordinate. Verify on-site." },
+  { id: "admin", name: "Administration Building", lat: 8.15648, lng: 123.95437, category: "Administration", status: "Prototype", description: "Administrative destination in the campus guide. Exact coordinates should be verified during campus mapping.", source: "Prototype coordinate. Verify on-site." },
+  { id: "dcs", name: "Department of Computer Science", lat: 8.15670, lng: 123.95470, category: "Academic", status: "Public Source", description: "Academic department listed on the official MSU-MCEST website.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
+  { id: "dhess", name: "Department of Humanities, Education, and Social Sciences", lat: 8.15686, lng: 123.95431, category: "Academic", status: "Public Source", description: "Academic department listed on the official MSU-MCEST website.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
+  { id: "secondary", name: "Secondary Department", lat: 8.15702, lng: 123.95458, category: "Academic", status: "Public Source", description: "Secondary program area referenced through the official MSU-MCEST site navigation.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
+  { id: "hotel", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.15718, lng: 123.95485, category: "Hospitality", status: "Public Source", description: "Facility named in MHCT reporting as one of the MSU-MCEST facilities awarded Halal compliance.", source: "https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" },
+  { id: "halal", name: "Halal Food Innovation Center / DTI-SSF", lat: 8.15645, lng: 123.95503, category: "Training Facility", status: "Public Source", description: "MHCT identifies DTI-SSF as housed in the Halal Food Innovation Center.", source: "https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" },
+  { id: "kitchen", name: "Kitchen Laboratory", lat: 8.15618, lng: 123.95486, category: "Laboratory", status: "Public Source", description: "Facility named in MHCT reporting as one of the MSU-MCEST facilities awarded Halal compliance.", source: "https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" },
+  { id: "tesda", name: "TESDA Training and Assessment Center", lat: 8.15596, lng: 123.95456, category: "Training Facility", status: "Public Source", description: "Training and assessment facility named in MHCT reporting and linked from the official MSU-MCEST site navigation.", source: "https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" }
+];
+
+let buildings = defaultBuildings;
+let usingBackend = false;
+let feedbackItems = [];
+let staffItems = [];
+
+function loadBuildings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(saved) && saved.length ? saved : defaultBuildings;
+  } catch {
+    return defaultBuildings;
+  }
+}
+function saveBuildings() { localStorage.setItem(STORAGE_KEY, JSON.stringify(buildings)); }
+async function apiJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.message || "Request failed.");
+  }
+  return data;
+}
+async function loadBuildingsFromBackend() {
+  try {
+    const data = await apiJson(API_BUILDINGS);
+    buildings = data.buildings.map(building => ({
+      id: building.id,
+      name: building.name,
+      lat: Number(building.lat),
+      lng: Number(building.lng),
+      category: building.category,
+      status: building.status,
+      description: building.description,
+      source: building.source || ""
+    }));
+    usingBackend = true;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildings));
+  } catch (error) {
+    buildings = loadBuildings();
+    usingBackend = false;
+  }
+}
+async function loadFeedback() {
+  if (!usingBackend) {
+    feedbackItems = [];
+    renderFeedback();
+    return;
+  }
+  try {
+    const data = await apiJson(API_FEEDBACK);
+    feedbackItems = data.feedback || [];
+    renderFeedback();
+  } catch (error) {
+    feedbackItems = [];
+    renderFeedback("Unable to load feedback.");
+  }
+}
+async function loadStaff() {
+  if (!usingBackend) {
+    staffItems = JSON.parse(localStorage.getItem("msuMcestStaff") || "[]");
+    renderStaff();
+    return;
+  }
+  try {
+    const data = await apiJson(API_STAFF);
+    staffItems = data.staff || [];
+    renderStaff();
+  } catch (error) {
+    staffItems = [];
+    renderStaff("Unable to load staff records.");
+  }
+}
+function toast(message) {
+  const el = document.getElementById("toast");
+  el.textContent = message;
+  el.classList.add("active");
+  setTimeout(() => el.classList.remove("active"), 2400);
+}
+function renderMetrics() {
+  document.getElementById("totalBuildings").textContent = buildings.length;
+  document.getElementById("markerCount").textContent = buildings.filter(b => b.id).length;
+  document.getElementById("verifiedCount").textContent = buildings.filter(b => b.status !== "Prototype").length;
+  document.getElementById("cameraStatus").textContent = navigator.mediaDevices ? "Ready" : "Blocked";
+  document.getElementById("gpsStatus").textContent = navigator.geolocation ? "Ready" : "Blocked";
+  document.getElementById("compassStatus").textContent = typeof DeviceOrientationEvent !== "undefined" ? "Ready" : "Limited";
+  document.getElementById("storageStatus").textContent = usingBackend ? "MySQL" : window.localStorage ? "Local" : "Blocked";
+  document.getElementById("secureStatus").textContent = usingBackend ? "ar_campus connected" : "Local fallback mode";
+}
+function renderBuildings() {
+  document.getElementById("buildingRows").innerHTML = buildings.map(building => `
+    <tr>
+      <td><strong>${escapeHtml(building.name)}</strong><br><span class="tag">${escapeHtml(building.category)}</span></td>
+      <td><span class="tag ok">msu-mcest:${escapeHtml(building.id)}</span></td>
+      <td>${Number(building.lat).toFixed(6)}, ${Number(building.lng).toFixed(6)}</td>
+      <td><span class="tag ${building.status === "Prototype" ? "warn" : "ok"}">${escapeHtml(building.status)}</span></td>
+      <td><button class="btn" onclick="editBuilding('${building.id}')">Edit</button> <button class="btn danger" onclick="deleteBuilding('${building.id}')">Delete</button></td>
+    </tr>
+  `).join("");
+}
+function renderRoutes() {
+  document.getElementById("routeList").innerHTML = Object.entries(routeGraph).map(([from, links]) => {
+    const fromName = buildings.find(b => b.id === from)?.name || from;
+    const linkNames = links.map(id => buildings.find(b => b.id === id)?.name || id).join(", ");
+    return `<div class="route-item"><strong>${escapeHtml(fromName)}</strong><span>${escapeHtml(linkNames)}</span></div>`;
+  }).join("");
+}
+function renderMarkers() {
+  document.getElementById("markerList").innerHTML = buildings.map(building => `
+    <div class="marker-item">
+      <div><strong>${escapeHtml(building.name)}</strong><br><span>Payload: msu-mcest:${escapeHtml(building.id)}</span></div>
+      <button class="btn" onclick="copyPayload('${building.id}')">Copy Payload</button>
+    </div>
+  `).join("");
+}
+function renderStaffBuildingOptions() {
+  const select = document.getElementById("staffBuilding");
+  if (!select) return;
+  select.innerHTML = "";
+  select.add(new Option("Not assigned", ""));
+  buildings.forEach(building => select.add(new Option(building.name, building.id)));
+}
+function renderStaff(message = "") {
+  renderStaffBuildingOptions();
+  const body = document.getElementById("staffRows");
+  if (!body) return;
+  if (message) {
+    body.innerHTML = `<tr><td colspan="5">${escapeHtml(message)}</td></tr>`;
+    return;
+  }
+  if (!staffItems.length) {
+    body.innerHTML = `<tr><td colspan="5">No staff records yet.</td></tr>`;
+    return;
+  }
+  body.innerHTML = staffItems.map(item => `
+    <tr>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${escapeHtml(item.department)}</td>
+      <td>${escapeHtml(item.office)}</td>
+      <td>${escapeHtml(item.building_name || item.marker_id || "Not assigned")}</td>
+      <td><button class="btn" onclick="editStaff('${escapeHtml(item.staff_id)}')">Edit</button> <button class="btn danger" onclick="deleteStaff('${escapeHtml(item.staff_id)}')">Delete</button></td>
+    </tr>
+  `).join("");
+}
+function renderFeedback(message = "") {
+  const body = document.getElementById("feedbackRows");
+  if (!body) return;
+  if (message) {
+    body.innerHTML = `<tr><td colspan="4">${escapeHtml(message)}</td></tr>`;
+    return;
+  }
+  if (!feedbackItems.length) {
+    body.innerHTML = `<tr><td colspan="4">No feedback submitted yet.</td></tr>`;
+    return;
+  }
+  body.innerHTML = feedbackItems.map(item => `
+    <tr>
+      <td>${escapeHtml(item.user_name)}</td>
+      <td>${escapeHtml(item.building_name || "General")}</td>
+      <td>${escapeHtml(item.comment)}</td>
+      <td>${escapeHtml(item.date_created)}</td>
+    </tr>
+  `).join("");
+}
+function renderAll() { renderMetrics(); renderBuildings(); renderRoutes(); renderMarkers(); renderStaff(); renderFeedback(); }
+function editBuilding(id) {
+  const building = buildings.find(item => item.id === id);
+  if (!building) return;
+  document.getElementById("formTitle").textContent = "Edit Building";
+  document.getElementById("recordId").value = building.id;
+  document.getElementById("buildingName").value = building.name;
+  document.getElementById("markerId").value = building.id;
+  document.getElementById("lat").value = building.lat;
+  document.getElementById("lng").value = building.lng;
+  document.getElementById("category").value = building.category;
+  document.getElementById("sourceType").value = building.status;
+  document.getElementById("description").value = building.description;
+  document.getElementById("sourceUrl").value = building.source;
+  showSection("buildings");
+}
+async function deleteBuilding(id) {
+  const building = buildings.find(item => item.id === id);
+  if (!building || !confirm("Delete " + building.name + "?")) return;
+  if (usingBackend) {
+    try {
+      await apiJson(API_BUILDINGS + "?id=" + encodeURIComponent(id), { method: "DELETE" });
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+  }
+  buildings = buildings.filter(item => item.id !== id);
+  saveBuildings();
+  renderAll();
+  toast("Building deleted.");
+}
+function copyPayload(id) {
+  const payload = "msu-mcest:" + id;
+  navigator.clipboard?.writeText(payload);
+  toast("Copied " + payload);
+}
+function clearForm() {
+  document.getElementById("formTitle").textContent = "Add Building";
+  document.getElementById("buildingForm").reset();
+  document.getElementById("recordId").value = "";
+  document.getElementById("sourceType").value = "Prototype";
+}
+function clearStaffForm() {
+  document.getElementById("staffFormTitle").textContent = "Add Staff";
+  document.getElementById("staffForm").reset();
+  document.getElementById("staffId").value = "";
+}
+function editStaff(id) {
+  const staff = staffItems.find(item => String(item.staff_id) === String(id));
+  if (!staff) return;
+  document.getElementById("staffFormTitle").textContent = "Edit Staff";
+  document.getElementById("staffId").value = staff.staff_id;
+  document.getElementById("staffName").value = staff.name;
+  document.getElementById("staffDepartment").value = staff.department;
+  document.getElementById("staffOffice").value = staff.office;
+  document.getElementById("staffBuilding").value = staff.marker_id || "";
+  showSection("staff");
+}
+async function deleteStaff(id) {
+  const staff = staffItems.find(item => String(item.staff_id) === String(id));
+  if (!staff || !confirm("Delete " + staff.name + "?")) return;
+  if (usingBackend) {
+    try {
+      await apiJson(API_STAFF + "?id=" + encodeURIComponent(id), { method: "DELETE" });
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+  }
+  staffItems = staffItems.filter(item => String(item.staff_id) !== String(id));
+  localStorage.setItem("msuMcestStaff", JSON.stringify(staffItems));
+  renderStaff();
+  toast("Staff record deleted.");
+}
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(section => section.classList.toggle("active", section.id === id));
+  document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.section === id));
+}
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char]));
+}
+document.querySelectorAll(".nav button").forEach(button => button.addEventListener("click", () => showSection(button.dataset.section)));
+document.getElementById("staffForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const record = {
+    staff_id: document.getElementById("staffId").value,
+    name: document.getElementById("staffName").value.trim(),
+    department: document.getElementById("staffDepartment").value.trim(),
+    office: document.getElementById("staffOffice").value.trim(),
+    marker_id: document.getElementById("staffBuilding").value
+  };
+  if (!record.name || !record.department || !record.office) {
+    toast("Please complete the staff name, department, and office.");
+    return;
+  }
+  if (usingBackend) {
+    try {
+      await apiJson(API_STAFF, { method: "POST", body: JSON.stringify(record) });
+      await loadStaff();
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+  } else {
+    if (record.staff_id) {
+      staffItems = staffItems.map(item => String(item.staff_id) === String(record.staff_id) ? record : item);
+    } else {
+      record.staff_id = Date.now();
+      staffItems = [...staffItems, record];
+    }
+    localStorage.setItem("msuMcestStaff", JSON.stringify(staffItems));
+    renderStaff();
+  }
+  clearStaffForm();
+  toast("Staff record saved.");
+});
+document.getElementById("buildingForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const previousId = document.getElementById("recordId").value.trim();
+  const id = document.getElementById("markerId").value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  const record = {
+    id,
+    name: document.getElementById("buildingName").value.trim(),
+    lat: Number(document.getElementById("lat").value),
+    lng: Number(document.getElementById("lng").value),
+    category: document.getElementById("category").value,
+    status: document.getElementById("sourceType").value,
+    description: document.getElementById("description").value.trim(),
+    source: document.getElementById("sourceUrl").value.trim() || "Prototype note"
+  };
+  if (!record.name || !id || Number.isNaN(record.lat) || Number.isNaN(record.lng)) {
+    toast("Please complete the building name, marker ID, and coordinates.");
+    return;
+  }
+  if (buildings.some(item => item.id === id && item.id !== previousId)) {
+    toast("Marker ID already exists.");
+    return;
+  }
+  if (usingBackend) {
+    try {
+      await apiJson(API_BUILDINGS, {
+        method: "POST",
+        body: JSON.stringify({ ...record, previousId })
+      });
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+  }
+  buildings = previousId ? buildings.map(item => item.id === previousId ? record : item) : [...buildings, record];
+  saveBuildings();
+  clearForm();
+  renderAll();
+  toast(usingBackend ? "Building saved in ar_campus." : "Building saved locally.");
+});
+document.getElementById("clearFormBtn").addEventListener("click", clearForm);
+document.getElementById("clearStaffBtn").addEventListener("click", clearStaffForm);
+document.getElementById("resetDataBtn").addEventListener("click", () => {
+  if (!confirm("Reset browser fallback data to the default prototype records?")) return;
+  buildings = defaultBuildings;
+  saveBuildings();
+  clearForm();
+  renderAll();
+  toast("Default data restored.");
+});
+document.getElementById("refreshFeedbackBtn").addEventListener("click", loadFeedback);
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  sessionStorage.removeItem("adminLoggedIn");
+  location.href = "index.html";
+});
+async function bootAdmin() {
+  await loadBuildingsFromBackend();
+  renderAll();
+  await loadStaff();
+  await loadFeedback();
+}
+bootAdmin();
+</script>
 </body>
 </html>

@@ -1,0 +1,60 @@
+MSU-MCEST AR Campus Guide
+
+Main pages:
+- index.html: choose Campus Tour or Navigation
+- tour.html: 3D campus tour
+- navigation.html: camera view, marker scan, GPS tracking, compass arrow
+- markers.html: printable QR markers for buildings/corners
+- feedback.html: student/guest feedback form
+- admin.html: database-backed building, marker, route, and feedback management
+
+Database setup for Chapter 3 / phpMyAdmin:
+1. Open phpMyAdmin.
+2. Import:
+   database/ar_campus.sql
+3. Confirm the database name is:
+   ar_campus
+4. Default admin account:
+   admin / admin123
+
+How to run on this computer with PHP/MySQL:
+1. Copy or keep this folder under your PHP server web root, such as:
+   C:\xampp\htdocs\campus_tour
+2. Start Apache and MySQL.
+3. Open:
+   http://localhost/campus_tour/index.html
+
+How to run as static frontend only:
+1. Open a terminal in this folder.
+2. Run:
+   py -m http.server 8090 --bind 127.0.0.1
+3. Open:
+   http://127.0.0.1:8090/index.html
+4. In this mode the PHP API is unavailable, so the app uses browser localStorage fallback data.
+
+How to run on a phone:
+- Camera, GPS, and compass need a secure context.
+- Use an HTTPS host such as GitHub Pages, Netlify, Vercel, or a school HTTPS server.
+- Print the QR markers from markers.html and place each marker at its matching building/corner.
+
+Navigation flow:
+1. Open navigation.html on the phone.
+2. Allow camera, location, and compass permissions.
+3. Scan a building marker or use nearest GPS point.
+4. Choose a destination.
+5. Follow the single AR arrow.
+
+Marker payload format:
+- msu-mcest:gate
+- msu-mcest:admin
+- msu-mcest:dcs
+- msu-mcest:dhess
+- msu-mcest:secondary
+- msu-mcest:hotel
+- msu-mcest:halal
+- msu-mcest:kitchen
+- msu-mcest:tesda
+
+Important:
+The current building coordinates and route graph are prototype data. For actual campus accuracy,
+replace them with verified GPS points collected on-site.
