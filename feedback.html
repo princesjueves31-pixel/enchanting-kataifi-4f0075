@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Feedback | MSU-MCEST AR Campus Guide</title>
 <script src="orientation-lock.js" defer></script>
+<script src="supabase-config.js"></script>
 <style>
 :root {
   --text: #f8fafc;
@@ -110,6 +111,7 @@ button { background: var(--accent); color: #111827; border-color: transparent; }
 const STORAGE_KEY = "msuMcestBuildings";
 const API_BUILDINGS = "api/buildings.php";
 const API_FEEDBACK = "api/feedback.php";
+const SUPABASE_CONFIG = window.MSU_SUPABASE || {};
 const fallbackBuildings = [
   { id: "", name: "General Feedback" },
   { id: "gate", name: "Main Gate / Entrance" },
@@ -153,6 +155,53 @@ async function loadBuildings() {
   buildings.forEach(building => select.add(new Option(building.name, building.id)));
 }
 
+async function submitToSupabase(payload) {
+  if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) return false;
+
+  const table = SUPABASE_CONFIG.feedbackTable || "feedback";
+  const endpoint = `${SUPABASE_CONFIG.url.replace(/\/$/, "")}/rest/v1/${encodeURIComponent(table)}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_CONFIG.anonKey,
+      "Authorization": `Bearer ${SUPABASE_CONFIG.anonKey}`,
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({
+      user_name: payload.user_name,
+      marker_id: payload.marker_id || null,
+      comment: payload.comment
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Supabase error ${response.status}: ${detail || response.statusText}`);
+  }
+
+  return true;
+}
+
+async function submitToPhpApi(payload) {
+  const response = await fetch(API_FEEDBACK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.message || "Feedback was not saved.");
+  }
+  return true;
+}
+
+function saveFeedbackLocally(payload) {
+  const saved = JSON.parse(localStorage.getItem("msuMcestFeedback") || "[]");
+  saved.push({ ...payload, date_created: new Date().toISOString() });
+  localStorage.setItem("msuMcestFeedback", JSON.stringify(saved));
+}
+
 document.getElementById("feedbackForm").addEventListener("submit", async event => {
   event.preventDefault();
   const payload = {
@@ -165,21 +214,22 @@ document.getElementById("feedbackForm").addEventListener("submit", async event =
     return;
   }
   try {
-    const response = await fetch(API_FEEDBACK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    if (!response.ok || data.ok === false) throw new Error(data.message || "Feedback was not saved.");
+    await submitToPhpApi(payload);
     document.getElementById("feedbackForm").reset();
     showMessage("Feedback submitted to ar_campus.");
   } catch (error) {
-    const saved = JSON.parse(localStorage.getItem("msuMcestFeedback") || "[]");
-    saved.push({ ...payload, date_created: new Date().toISOString() });
-    localStorage.setItem("msuMcestFeedback", JSON.stringify(saved));
-    document.getElementById("feedbackForm").reset();
-    showMessage("Feedback saved locally. Run through PHP/XAMPP to save it in ar_campus.");
+    try {
+      if (await submitToSupabase(payload)) {
+        document.getElementById("feedbackForm").reset();
+        showMessage("Feedback submitted to Supabase backup.");
+        return;
+      }
+      throw error;
+    } catch (supabaseError) {
+      saveFeedbackLocally(payload);
+      document.getElementById("feedbackForm").reset();
+      showMessage("Feedback saved locally. XAMPP/MySQL and Supabase are not connected.");
+    }
   }
 });
 

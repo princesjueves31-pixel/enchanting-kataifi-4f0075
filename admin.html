@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin | MSU-MCEST AR Campus Guide</title>
 <script src="orientation-lock.js" defer></script>
+<script src="supabase-config.js"></script>
 <style>
 :root {
   --bg: #08111d;
@@ -488,6 +489,7 @@ const STORAGE_KEY = "msuMcestBuildings";
 const API_BUILDINGS = "api/buildings.php";
 const API_FEEDBACK = "api/feedback.php";
 const API_STAFF = "api/staff.php";
+const SUPABASE_CONFIG = window.MSU_SUPABASE || {};
 const routeGraph = {
   gate: ["admin", "kitchen"],
   admin: ["gate", "dcs", "dhess"],
@@ -558,19 +560,53 @@ async function loadBuildingsFromBackend() {
   }
 }
 async function loadFeedback() {
-  if (!usingBackend) {
-    feedbackItems = [];
+  const localFeedback = JSON.parse(localStorage.getItem("msuMcestFeedback") || "[]");
+
+  try {
+    feedbackItems = await loadFeedbackFromSupabase();
     renderFeedback();
     return;
-  }
+  } catch (supabaseError) {}
+
   try {
     const data = await apiJson(API_FEEDBACK);
     feedbackItems = data.feedback || [];
     renderFeedback();
   } catch (error) {
-    feedbackItems = [];
-    renderFeedback("Unable to load feedback.");
+    feedbackItems = localFeedback;
+    renderFeedback(localFeedback.length ? "" : "Unable to load feedback.");
   }
+}
+
+async function loadFeedbackFromSupabase() {
+  if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const table = SUPABASE_CONFIG.feedbackTable || "feedback";
+  const endpoint = `${SUPABASE_CONFIG.url.replace(/\/$/, "")}/rest/v1/${encodeURIComponent(table)}?select=*&order=created_at.desc`;
+  const response = await fetch(endpoint, {
+    headers: {
+      "apikey": SUPABASE_CONFIG.anonKey,
+      "Authorization": `Bearer ${SUPABASE_CONFIG.anonKey}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const rows = await response.json();
+  return rows.map(row => {
+    const building = buildings.find(item => item.id === row.marker_id);
+    return {
+      user_name: row.user_name || "Guest",
+      building_name: building?.name || row.marker_id || "General",
+      comment: row.comment || "",
+      created_at: row.created_at || "",
+      date_created: row.created_at || row.date_created || ""
+    };
+  });
 }
 async function loadStaff() {
   if (!usingBackend) {
@@ -658,6 +694,23 @@ function renderStaff(message = "") {
     </tr>
   `).join("");
 }
+
+function formatFeedbackDate(item) {
+  const rawDate = item.created_at || item.date_created || item.createdAt || "";
+  if (!rawDate) return "No date";
+
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return rawDate;
+
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function renderFeedback(message = "") {
   const body = document.getElementById("feedbackRows");
   if (!body) return;
@@ -674,7 +727,7 @@ function renderFeedback(message = "") {
       <td>${escapeHtml(item.user_name)}</td>
       <td>${escapeHtml(item.building_name || "General")}</td>
       <td>${escapeHtml(item.comment)}</td>
-      <td>${escapeHtml(item.date_created)}</td>
+      <td>${escapeHtml(formatFeedbackDate(item))}</td>
     </tr>
   `).join("");
 }
