@@ -414,7 +414,7 @@ if (sessionStorage.getItem("adminLoggedIn") !== "true") {
         <div class="panel-head">
           <div>
             <h3>Route Network</h3>
-            <p>Routes use the measured right path, left path, and gate-front path used by the navigation guide.</p>
+            <p>Routes are currently prototype walking links. Replace them with measured campus corners for accurate real-time navigation.</p>
           </div>
           <button class="btn good" onclick="location.href='navigation.html'">Run Route Test</button>
         </div>
@@ -490,43 +490,21 @@ const API_BUILDINGS = "api/buildings.php";
 const API_FEEDBACK = "api/feedback.php";
 const API_STAFF = "api/staff.php";
 const SUPABASE_CONFIG = window.MSU_SUPABASE || {};
+const routeGraph = {
+  gate: ["admin", "kitchen"],
+  admin: ["gate", "dcs", "dhess"],
+  dcs: ["admin", "halal", "secondary"],
+  dhess: ["admin", "secondary"],
+  secondary: ["dhess", "dcs", "hotel"],
+  hotel: ["secondary", "halal"],
+  halal: ["dcs", "hotel", "kitchen"],
+  kitchen: ["gate", "halal", "tesda"],
+  tesda: ["kitchen"]
+};
+
 const defaultBuildings = [
   { id: "gate", name: "Main Gate / Entrance", lat: 8.15626, lng: 123.95448, category: "Campus Entry", status: "Prototype", description: "Primary campus entry point used as a starting reference for the navigation prototype.", source: "Prototype coordinate. Verify on-site." },
-  { id: "registrar", name: "Academic Building - Registrar", lat: 8.15700, lng: 123.95444, category: "Academic", status: "Measured Path", description: "Registrar location from the measured left-path campus route.", source: "Gate to registrar: 0.07 m." },
-  { id: "guidance_right", name: "Claudio Cabug Memorial Building - Guidance", lat: 8.15634, lng: 123.95470, category: "Student Services", status: "Measured Path", description: "Guidance location from the measured right-path campus route.", source: "Gate to guidance via right path: 0.01 m." },
-  { id: "cabug", name: "College Department Building - Cabug", lat: 8.15682, lng: 123.95498, category: "Academic", status: "Measured Path", description: "Cabug building location from the measured right-path campus route.", source: "Gate to Cabug Building: 0.06 m." },
-  { id: "peacepark", name: "Peace Park", lat: 8.15696, lng: 123.95496, category: "Campus Landmark", status: "Measured Path", description: "Peace Park location from the measured right-path campus route.", source: "Gate to Peace Park: 0.07 m." },
-  { id: "gym", name: "Campus Gymnasium", lat: 8.15712, lng: 123.95493, category: "Sports Facility", status: "Measured Path", description: "Campus gymnasium location from the measured right-path campus route.", source: "Gate to gym: 0.09 m." },
-  { id: "det", name: "Engineering Technology Building - DET", lat: 8.15714, lng: 123.95448, category: "Academic", status: "Measured Path", description: "Engineering technology location from the measured left-path campus route.", source: "Gate to DET: 0.09 m." },
-  { id: "fab_shop", name: "Industrial Technology Workshops - Fab Shop / Back of Registrar", lat: 8.15630, lng: 123.95440, category: "Workshop", status: "Measured Path", description: "Industrial technology workshop location from the measured right-path campus route.", source: "Gate to fab shop/back of registrar: 0.47 m." },
-  { id: "medical_rooms", name: "Health Services Building - Medical Rooms", lat: 8.15658, lng: 123.95438, category: "Health Services", status: "Measured Path", description: "Medical rooms location from the measured left-path campus route.", source: "Gate to medical rooms: 0.03 m." },
-  { id: "jhs", name: "JHS", lat: 8.15626, lng: 123.95443, category: "Academic", status: "Measured Path", description: "JHS location from the gate-front measured path.", source: "Gate to JHS: 0.05 m." },
-  { id: "caf", name: "CAF", lat: 8.15628, lng: 123.95453, category: "Campus Facility", status: "Measured Path", description: "CAF location from the gate-front measured path.", source: "Gate to CAF: 0.04 m." },
-  { id: "basketball", name: "Basketball Court", lat: 8.15656, lng: 123.95496, category: "Sports Facility", status: "Measured Path", description: "Basketball court location from the measured right path.", source: "Gate to basketball: 0.03 m." },
-  { id: "old_registrar_cashier", name: "Old Registrar / Cashier", lat: 8.15724, lng: 123.95486, category: "Administration", status: "Measured Path", description: "Old registrar/cashier point from the measured right path.", source: "Gate to old registrar/cashier: 0.14 m." },
-  { id: "admin", name: "Administration Building", lat: 8.15730, lng: 123.95478, category: "Administration", status: "Measured Path", description: "Administration building from the measured right-path campus route.", source: "Gate to admin: 0.15 m." },
-  { id: "ringia", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.15734, lng: 123.95468, category: "Hospitality", status: "Measured Path", description: "Ringia hotel location from the measured right-path campus route.", source: "Gate to Ringia: 0.18 m." },
-  { id: "palawan", name: "Palawan Building", lat: 8.15736, lng: 123.95456, category: "Campus Facility", status: "Measured Path", description: "Palawan building location from the measured right-path campus route.", source: "Gate to Palawan: 0.24 m." },
-  { id: "sixteenth", name: "16th Building / Basketball Area", lat: 8.15732, lng: 123.95442, category: "Academic", status: "Measured Path", description: "16th building point from the measured right-path campus route.", source: "Gate to 16th: 0.29 m." },
-  { id: "pavilion_right", name: "Pavilion - Right Path", lat: 8.15722, lng: 123.95433, category: "Campus Facility", status: "Measured Path", description: "Pavilion point from the measured right-path campus route.", source: "Gate to pavilion: 0.32 m." },
-  { id: "tambayan_dorm", name: "Tambayan Dorm", lat: 8.15708, lng: 123.95427, category: "Student Area", status: "Measured Path", description: "Tambayan dorm point from the measured right-path campus route.", source: "Gate to tambayan dorm: 0.33 m." },
-  { id: "dorm_right", name: "Dorm - Right Path", lat: 8.15694, lng: 123.95423, category: "Residence", status: "Measured Path", description: "Dorm point from the measured right-path campus route.", source: "Gate to dorm: 0.34 m." },
-  { id: "executive_dorm", name: "Executive Dorm", lat: 8.15678, lng: 123.95422, category: "Residence", status: "Measured Path", description: "Executive dorm point from the measured right-path campus route.", source: "Gate to executive dorm: 0.36 m." },
-  { id: "isl", name: "ISL Building", lat: 8.15664, lng: 123.95423, category: "Academic", status: "Measured Path", description: "ISL building from the measured right-path campus route.", source: "Gate to ISL: 0.39 m." },
-  { id: "tambayan_isl", name: "Tambayan ISL", lat: 8.15650, lng: 123.95425, category: "Student Area", status: "Measured Path", description: "Tambayan ISL point from the measured right-path campus route.", source: "Gate to tambayan ISL: 0.40 m." },
-  { id: "dit", name: "DIT", lat: 8.15640, lng: 123.95430, category: "Academic", status: "Measured Path", description: "DIT point from the measured right-path campus route.", source: "Gate to DIT: 0.43 m." },
-  { id: "front_isl", name: "Front of ISL Building", lat: 8.15634, lng: 123.95435, category: "Academic", status: "Measured Path", description: "Front of ISL building from the measured right-path campus route.", source: "Gate to front of ISL: 0.45 m." },
-  { id: "dti", name: "DTI", lat: 8.15628, lng: 123.95445, category: "Training Facility", status: "Measured Path", description: "DTI point from the measured right-path campus route.", source: "Gate to DTI: 0.49 m." },
-  { id: "guidance_left", name: "Guidance - Left Path", lat: 8.15644, lng: 123.95438, category: "Student Services", status: "Measured Path", description: "Guidance point from the measured left-path campus route.", source: "Gate to guidance via left path: 0.02 m." },
-  { id: "comlab", name: "Computer Laboratory", lat: 8.15672, lng: 123.95439, category: "Laboratory", status: "Measured Path", description: "Computer laboratory from the measured left-path campus route.", source: "Gate to comlab: 0.04 m." },
-  { id: "avr", name: "AVR", lat: 8.15686, lng: 123.95441, category: "Academic Facility", status: "Measured Path", description: "AVR from the measured left-path campus route.", source: "Gate to AVR: 0.05 m." },
-  { id: "tambayan_left_1", name: "Tambayan - Left Path 1", lat: 8.15724, lng: 123.95453, category: "Student Area", status: "Measured Path", description: "Tambayan point from the measured left-path campus route.", source: "Gate to tambayan: 0.10 m." },
-  { id: "tambayan_left_2", name: "Tambayan - Left Path 2", lat: 8.15732, lng: 123.95458, category: "Student Area", status: "Measured Path", description: "Second tambayan point from the measured left-path campus route.", source: "Gate to tambayan: 0.11 m." },
-  { id: "new_cr", name: "New CR", lat: 8.15739, lng: 123.95464, category: "Campus Facility", status: "Measured Path", description: "New CR from the measured left-path campus route.", source: "Gate to new CR: 0.12 m." },
-  { id: "dorm_left", name: "Dorm - Left Path", lat: 8.15744, lng: 123.95470, category: "Residence", status: "Measured Path", description: "Dorm point from the measured left-path campus route.", source: "Gate to dorm: 0.14 m." },
-  { id: "pavilion_left", name: "Pavilion - Left Path", lat: 8.15746, lng: 123.95478, category: "Campus Facility", status: "Measured Path", description: "Pavilion point from the measured left-path campus route.", source: "Gate to pavilion: 0.16 m." },
-  { id: "sixteenth_left", name: "16th Building - Left Path", lat: 8.15743, lng: 123.95488, category: "Academic", status: "Measured Path", description: "16th building point from the measured left-path campus route.", source: "Gate to 16th: 0.20 m." },
-  { id: "sdc", name: "SDC", lat: 8.15730, lng: 123.95492, category: "Campus Facility", status: "Measured Path", description: "SDC point from the measured connector route.", source: "16th to SDC: 0.06 m." },
+  { id: "admin", name: "Administration Building", lat: 8.15648, lng: 123.95437, category: "Administration", status: "Prototype", description: "Administrative destination in the campus guide. Exact coordinates should be verified during campus mapping.", source: "Prototype coordinate. Verify on-site." },
   { id: "dcs", name: "Department of Computer Science", lat: 8.15670, lng: 123.95470, category: "Academic", status: "Public Source", description: "Academic department listed on the official MSU-MCEST website.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
   { id: "dhess", name: "Department of Humanities, Education, and Social Sciences", lat: 8.15686, lng: 123.95431, category: "Academic", status: "Public Source", description: "Academic department listed on the official MSU-MCEST website.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
   { id: "secondary", name: "Secondary Department", lat: 8.15702, lng: 123.95458, category: "Academic", status: "Public Source", description: "Secondary program area referenced through the official MSU-MCEST site navigation.", source: "https://msumcest.edu.ph/pages/campus_life/campus_map.php" },
@@ -536,89 +514,15 @@ const defaultBuildings = [
   { id: "tesda", name: "TESDA Training and Assessment Center", lat: 8.15596, lng: 123.95456, category: "Training Facility", status: "Public Source", description: "Training and assessment facility named in MHCT reporting and linked from the official MSU-MCEST site navigation.", source: "https://www.mhctagency.com/certification/msu-mcest-achieves-halal-compliance-with-mhct/" }
 ];
 
-const routeMeasurements = {
-  "Right path": [
-    ["gate", 0],
-    ["guidance_right", 0.01],
-    ["basketball", 0.03],
-    ["cabug", 0.06],
-    ["peacepark", 0.07],
-    ["gym", 0.09],
-    ["old_registrar_cashier", 0.14],
-    ["admin", 0.15],
-    ["ringia", 0.18],
-    ["palawan", 0.24],
-    ["sixteenth", 0.29],
-    ["pavilion_right", 0.32],
-    ["tambayan_dorm", 0.33],
-    ["dorm_right", 0.34],
-    ["executive_dorm", 0.36],
-    ["isl", 0.39],
-    ["tambayan_isl", 0.40],
-    ["dit", 0.43],
-    ["front_isl", 0.45],
-    ["fab_shop", 0.47],
-    ["dti", 0.49]
-  ],
-  "Left path": [
-    ["gate", 0],
-    ["guidance_left", 0.02],
-    ["medical_rooms", 0.03],
-    ["comlab", 0.04],
-    ["avr", 0.05],
-    ["registrar", 0.07],
-    ["det", 0.09],
-    ["tambayan_left_1", 0.10],
-    ["tambayan_left_2", 0.11],
-    ["new_cr", 0.12],
-    ["dorm_left", 0.14],
-    ["pavilion_left", 0.16],
-    ["sixteenth_left", 0.20],
-    ["sdc", 0.26],
-    ["basketball", 0.31]
-  ],
-  "Gate front path": [
-    ["gate", 0],
-    ["caf", 0.04],
-    ["jhs", 0.05]
-  ]
-};
-
-const routeGraph = {};
-Object.values(routeMeasurements).forEach(routeNodes => {
-  routeNodes.forEach(([id], index) => {
-    routeGraph[id] ||= [];
-    if (index > 0) {
-      const previousId = routeNodes[index - 1][0];
-      routeGraph[previousId] ||= [];
-      if (!routeGraph[previousId].includes(id)) routeGraph[previousId].push(id);
-      if (!routeGraph[id].includes(previousId)) routeGraph[id].push(previousId);
-    }
-  });
-});
-
 let buildings = defaultBuildings;
 let usingBackend = false;
 let feedbackItems = [];
 let staffItems = [];
 
-function mergeDefaultBuildings(sourceBuildings) {
-  const merged = new Map(defaultBuildings.map(building => [building.id, building]));
-  sourceBuildings.forEach(building => {
-    if (!building?.id) return;
-    if (building.id === "gate" || !merged.has(building.id)) {
-      merged.set(building.id, building);
-      return;
-    }
-    merged.set(building.id, { ...merged.get(building.id), ...building });
-  });
-  return Array.from(merged.values());
-}
-
 function loadBuildings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(saved) && saved.length ? mergeDefaultBuildings(saved) : defaultBuildings;
+    return Array.isArray(saved) && saved.length ? saved : defaultBuildings;
   } catch {
     return defaultBuildings;
   }
@@ -638,7 +542,7 @@ async function apiJson(url, options = {}) {
 async function loadBuildingsFromBackend() {
   try {
     const data = await apiJson(API_BUILDINGS);
-    buildings = mergeDefaultBuildings(data.buildings.map(building => ({
+    buildings = data.buildings.map(building => ({
       id: building.id,
       name: building.name,
       lat: Number(building.lat),
@@ -647,7 +551,7 @@ async function loadBuildingsFromBackend() {
       status: building.status,
       description: building.description,
       source: building.source || ""
-    })));
+    }));
     usingBackend = true;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(buildings));
   } catch (error) {
@@ -747,11 +651,10 @@ function renderBuildings() {
   `).join("");
 }
 function renderRoutes() {
-  document.getElementById("routeList").innerHTML = Object.entries(routeMeasurements).map(([routeName, nodes]) => {
-    const stops = nodes
-      .map(([id, distance]) => `${buildings.find(b => b.id === id)?.name || id} (${distance.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")} m)`)
-      .join(" -> ");
-    return `<div class="route-item"><strong>${escapeHtml(routeName)}</strong><span>${escapeHtml(stops)}</span></div>`;
+  document.getElementById("routeList").innerHTML = Object.entries(routeGraph).map(([from, links]) => {
+    const fromName = buildings.find(b => b.id === from)?.name || from;
+    const linkNames = links.map(id => buildings.find(b => b.id === id)?.name || id).join(", ");
+    return `<div class="route-item"><strong>${escapeHtml(fromName)}</strong><span>${escapeHtml(linkNames)}</span></div>`;
   }).join("");
 }
 function renderMarkers() {

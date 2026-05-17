@@ -1,120 +1,71 @@
 (function () {
   const isTouchDevice = matchMedia("(pointer: coarse)").matches;
   const isSmallScreen = Math.min(innerWidth, innerHeight) <= 1024;
-  const shouldRequireLandscape = isTouchDevice || isSmallScreen;
 
-  if (!shouldRequireLandscape) return;
+  if (!isTouchDevice && !isSmallScreen) return;
 
   const style = document.createElement("style");
   style.textContent = `
-    #landscapeLockOverlay {
+    #rotateAdvice {
       position: fixed;
-      inset: 0;
+      top: max(10px, env(safe-area-inset-top));
+      left: 12px;
+      right: 12px;
       z-index: 99999;
       display: none;
-      place-items: center;
-      padding: 28px;
-      background: #07111d;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px;
+      background: rgba(7, 18, 31, .82);
       color: #f8fafc;
       font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.3;
       text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(12px);
+      pointer-events: none;
     }
 
-    #landscapeLockOverlay.is-visible {
-      display: grid;
+    #rotateAdvice.is-visible {
+      display: flex;
     }
 
-    #landscapeLockOverlay .panel {
-      max-width: 420px;
-    }
-
-    #landscapeLockOverlay .phone {
-      width: 78px;
-      height: 124px;
-      margin: 0 auto 22px;
-      border: 4px solid #f8fafc;
-      border-radius: 16px;
-      transform: rotate(90deg);
-      box-shadow: 0 0 0 1px rgba(255,255,255,.18);
-    }
-
-    #landscapeLockOverlay h2 {
-      margin: 0 0 10px;
-      font-size: 26px;
-      line-height: 1.15;
-      letter-spacing: 0;
-    }
-
-    #landscapeLockOverlay p {
-      margin: 0;
+    #rotateAdvice span {
       color: #cbd5e1;
-      line-height: 1.45;
-      font-size: 15px;
-    }
-
-    #landscapeLockOverlay button {
-      margin-top: 18px;
-      border: 0;
-      border-radius: 8px;
-      padding: 11px 16px;
-      background: #f97316;
-      color: #111827;
-      font-weight: 800;
-      cursor: pointer;
     }
   `;
 
-  const overlay = document.createElement("div");
-  overlay.id = "landscapeLockOverlay";
-  overlay.innerHTML = `
-    <div class="panel">
-      <div class="phone" aria-hidden="true"></div>
-      <h2>Rotate to Landscape</h2>
-      <p>This campus guide is designed for phone and tablet landscape view.</p>
-      <button type="button">Continue in Landscape</button>
-    </div>
-  `;
+  const advice = document.createElement("div");
+  advice.id = "rotateAdvice";
+  advice.innerHTML = `<strong>Tip:</strong> <span>Rotate your phone for a wider view.</span>`;
+
+  let hideTimer = null;
 
   function isPortrait() {
     return innerHeight > innerWidth;
   }
 
-  async function requestLandscape() {
-    try {
-      if (screen.orientation?.lock) {
-        await screen.orientation.lock("landscape");
-      }
-    } catch (_) {
-      // Some mobile browsers only allow orientation lock after fullscreen or user action.
-    }
-  }
-
-  async function requestFullscreenThenLandscape() {
-    try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch (_) {
-      // iOS Safari and some embedded browsers do not allow programmatic fullscreen.
+  function showAdvice() {
+    if (!isPortrait()) {
+      advice.classList.remove("is-visible");
+      return;
     }
 
-    await requestLandscape();
-    updateOverlay();
-  }
-
-  function updateOverlay() {
-    overlay.classList.toggle("is-visible", isPortrait());
+    advice.classList.add("is-visible");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => advice.classList.remove("is-visible"), 6500);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     document.head.appendChild(style);
-    document.body.appendChild(overlay);
-    overlay.querySelector("button").addEventListener("click", requestFullscreenThenLandscape);
-    requestLandscape();
-    updateOverlay();
+    document.body.appendChild(advice);
+    showAdvice();
   });
 
-  addEventListener("resize", updateOverlay);
-  addEventListener("orientationchange", () => setTimeout(updateOverlay, 250));
-  addEventListener("pointerdown", requestLandscape, { once: true });
+  addEventListener("resize", showAdvice);
+  addEventListener("orientationchange", () => setTimeout(showAdvice, 250));
 })();

@@ -48,40 +48,6 @@ video, .camera-fallback {
 }
 .pill { padding: 10px 12px; font-size: 13px; backdrop-filter: blur(12px); }
 .home { color: var(--text); text-decoration: none; padding: 10px 12px; }
-.guide-status {
-  display: none;
-  width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.guide-stat {
-  min-width: 0;
-  padding: 8px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  backdrop-filter: blur(12px);
-}
-.guide-stat small {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.guide-stat strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
-.guiding .topbar { align-items: stretch; }
-.guiding #modeText,
-.guiding .home,
-.guiding .panel {
-  display: none;
-}
-.guiding .guide-status { display: grid; }
 .panel {
   position: fixed;
   left: 14px;
@@ -117,12 +83,6 @@ button.orange { background: var(--accent); color: #111827; border-color: rgba(25
   z-index: 2;
   box-shadow: 0 0 0 999px rgba(0,0,0,.18);
 }
-.guiding .scan-frame {
-  top: 26%;
-  width: min(86vw, 430px);
-  border-color: rgba(34,197,94,.88);
-  box-shadow: 0 0 0 999px rgba(0,0,0,.08), 0 0 24px rgba(34,197,94,.28);
-}
 .scan-frame::after {
   content: "";
   position: absolute;
@@ -143,19 +103,19 @@ button.orange { background: var(--accent); color: #111827; border-color: rgba(25
   inset: 0;
   display: none;
   place-items: center;
-  z-index: 3;
+  z-index: 2;
   pointer-events: none;
 }
 .arrow-layer.active { display: grid; }
 .arrow {
-  width: min(46vw, 210px);
-  height: min(46vw, 210px);
+  width: min(55vw, 250px);
+  height: min(55vw, 250px);
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: rgba(249,115,22,.18);
   border: 2px solid rgba(249,115,22,.7);
-  font-size: min(23vw, 110px);
+  font-size: min(27vw, 130px);
   line-height: 1;
   text-shadow: 0 8px 26px rgba(0,0,0,.6);
 }
@@ -181,7 +141,6 @@ button.orange { background: var(--accent); color: #111827; border-color: rgba(25
 @media (min-width: 760px) {
   .panel { width: 430px; left: 18px; right: auto; }
   .topbar { left: 18px; right: 18px; }
-  .guide-status { max-width: 620px; margin: 0 auto; }
 }
 </style>
 </head>
@@ -196,11 +155,6 @@ button.orange { background: var(--accent); color: #111827; border-color: rgba(25
 
 <header class="topbar">
   <span id="modeText" class="pill">Scan starting building</span>
-  <div id="guideStatus" class="guide-status" aria-live="polite">
-    <div class="guide-stat"><small>Direction</small><strong id="topTurnText">Straight</strong></div>
-    <div class="guide-stat"><small>Distance</small><strong id="topDistanceText">-- m</strong></div>
-    <div class="guide-stat"><small>Next corner</small><strong id="topNextText">--</strong></div>
-  </div>
   <a class="pill home" href="index.html">Home</a>
 </header>
 
@@ -249,11 +203,11 @@ const defaultPlaces = [
   { id: "gate", name: "Main Gate / Entrance", lat: 8.15626, lng: 123.95448 },
   { id: "jhs", name: "JHS", lat: 8.15626, lng: 123.95443 },
   { id: "caf", name: "CAF", lat: 8.15628, lng: 123.95453 },
-  { id: "guidance_right", name: "Claudio Cabug Memorial Building - Guidance", lat: 8.15634, lng: 123.95470 },
+  { id: "guidance_right", name: "Guidance - Right Path", lat: 8.15634, lng: 123.95470 },
   { id: "basketball", name: "Basketball Court", lat: 8.15656, lng: 123.95496 },
-  { id: "cabug", name: "College Department Building - Cabug", lat: 8.15682, lng: 123.95498 },
+  { id: "cabug", name: "Cabug Building", lat: 8.15682, lng: 123.95498 },
   { id: "peacepark", name: "Peace Park", lat: 8.15696, lng: 123.95496 },
-  { id: "gym", name: "Campus Gymnasium", lat: 8.15712, lng: 123.95493 },
+  { id: "gym", name: "Gym", lat: 8.15712, lng: 123.95493 },
   { id: "old_registrar_cashier", name: "Old Registrar / Cashier", lat: 8.15724, lng: 123.95486 },
   { id: "admin", name: "Administration Building", lat: 8.15730, lng: 123.95478 },
   { id: "ringia", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.15734, lng: 123.95468 },
@@ -267,14 +221,14 @@ const defaultPlaces = [
   { id: "tambayan_isl", name: "Tambayan ISL", lat: 8.15650, lng: 123.95425 },
   { id: "dit", name: "DIT", lat: 8.15640, lng: 123.95430 },
   { id: "front_isl", name: "Front of ISL Building", lat: 8.15634, lng: 123.95435 },
-  { id: "fab_shop", name: "Industrial Technology Workshops - Fab Shop / Back of Registrar", lat: 8.15630, lng: 123.95440 },
+  { id: "fab_shop", name: "Fab Shop / Back of Registrar", lat: 8.15630, lng: 123.95440 },
   { id: "dti", name: "DTI", lat: 8.15628, lng: 123.95445 },
   { id: "guidance_left", name: "Guidance - Left Path", lat: 8.15644, lng: 123.95438 },
-  { id: "medical_rooms", name: "Health Services Building - Medical Rooms", lat: 8.15658, lng: 123.95438 },
+  { id: "medical_rooms", name: "Medical Rooms", lat: 8.15658, lng: 123.95438 },
   { id: "comlab", name: "Computer Laboratory", lat: 8.15672, lng: 123.95439 },
   { id: "avr", name: "AVR", lat: 8.15686, lng: 123.95441 },
-  { id: "registrar", name: "Academic Building - Registrar", lat: 8.15700, lng: 123.95444 },
-  { id: "det", name: "Engineering Technology Building - DET", lat: 8.15714, lng: 123.95448 },
+  { id: "registrar", name: "Registrar", lat: 8.15700, lng: 123.95444 },
+  { id: "det", name: "DET", lat: 8.15714, lng: 123.95448 },
   { id: "tambayan_left_1", name: "Tambayan - Left Path 1", lat: 8.15724, lng: 123.95453 },
   { id: "tambayan_left_2", name: "Tambayan - Left Path 2", lat: 8.15732, lng: 123.95458 },
   { id: "new_cr", name: "New CR", lat: 8.15739, lng: 123.95464 },
@@ -381,9 +335,6 @@ const modeText = document.getElementById("modeText");
 const turnText = document.getElementById("turnText");
 const distanceText = document.getElementById("distanceText");
 const gpsText = document.getElementById("gpsText");
-const topTurnText = document.getElementById("topTurnText");
-const topDistanceText = document.getElementById("topDistanceText");
-const topNextText = document.getElementById("topNextText");
 const guideTitle = document.getElementById("guideTitle");
 const guideHint = document.getElementById("guideHint");
 const notice = document.getElementById("notice");
@@ -493,68 +444,27 @@ function findPlace(id) {
 }
 
 function routeBetween(startId, endId) {
+  if (startId === "gate" && destinationRoutes.has(endId)) {
+    const measuredRoute = destinationRoutes.get(endId);
+    return measuredRoute.nodes.map(findPlace).filter(Boolean);
+  }
   if (!routeGraph[startId] || !routeGraph[endId]) {
     return [findPlace(startId), findPlace(endId)].filter(Boolean);
   }
-
-  const distances = new Map([[startId, 0]]);
-  const previous = new Map();
-  const unsettled = new Set(Object.keys(routeGraph));
-
-  while (unsettled.size) {
-    let currentId = null;
-    let bestDistance = Infinity;
-    unsettled.forEach(id => {
-      const candidateDistance = distances.get(id) ?? Infinity;
-      if (candidateDistance < bestDistance) {
-        bestDistance = candidateDistance;
-        currentId = id;
-      }
-    });
-    if (currentId === null || currentId === endId) break;
-
-    unsettled.delete(currentId);
-    (routeGraph[currentId] || []).forEach(nextId => {
-      if (!unsettled.has(nextId)) return;
-      const from = findPlace(currentId);
-      const to = findPlace(nextId);
-      if (!from || !to) return;
-      const measuredDistance = measuredDistances.get(currentId + ">" + nextId);
-      const edgeDistance = Number.isFinite(measuredDistance) ? measuredDistance : meters(from, to);
-      const totalDistance = bestDistance + edgeDistance;
-      if (totalDistance < (distances.get(nextId) ?? Infinity)) {
-        distances.set(nextId, totalDistance);
-        previous.set(nextId, currentId);
+  const queue = [[startId]];
+  const seen = new Set([startId]);
+  while (queue.length) {
+    const path = queue.shift();
+    const last = path[path.length - 1];
+    if (last === endId) return path.map(findPlace);
+    (routeGraph[last] || []).forEach(next => {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push([...path, next]);
       }
     });
   }
-
-  if (!distances.has(endId)) {
-    return [findPlace(startId), findPlace(endId)].filter(Boolean);
-  }
-
-  const path = [];
-  for (let id = endId; id; id = previous.get(id)) {
-    path.unshift(id);
-    if (id === startId) break;
-  }
-  return path.map(findPlace).filter(Boolean);
-}
-
-function routeDistance(routePlaces) {
-  return routePlaces.slice(1).reduce((total, place, index) => {
-    const previousPlace = routePlaces[index];
-    const measuredDistance = measuredStepDistance(previousPlace, place);
-    return total + (Number.isFinite(measuredDistance) ? measuredDistance : meters(previousPlace, place));
-  }, 0);
-}
-
-function routeName(routePlaces) {
-  const routeIds = routePlaces.map(place => place.id);
-  const match = Object.values(routeMeasurements).find(routeInfo =>
-    routeIds.every(id => routeInfo.nodes.some(([nodeId]) => nodeId === id))
-  );
-  return match?.name || "Fastest route";
+  return [findPlace(startId), findPlace(endId)];
 }
 
 function routeInfoForDestination(placeId) {
@@ -568,12 +478,6 @@ function formatMeasuredDistance(value) {
 
 function measuredStepDistance(from, to) {
   return measuredDistances.get(from.id + ">" + to.id);
-}
-
-function updateTopGuide(directionLabel, distanceLabel, nextLabel) {
-  topTurnText.textContent = directionLabel;
-  topDistanceText.textContent = distanceLabel;
-  topNextText.textContent = nextLabel;
 }
 
 function bearing(from, to) {
@@ -620,7 +524,6 @@ function updateArrow() {
     arrow.className = "arrow straight";
     turnText.textContent = "Arrived";
     distanceText.textContent = "0 m";
-    updateTopGuide("Arrived", "0 m", destination?.name || "Destination");
     guideHint.textContent = "You are at the destination.";
     return;
   }
@@ -640,11 +543,8 @@ function updateArrow() {
   if (diff > 35) direction = "right";
   if (diff < -35) direction = "left";
   arrow.className = "arrow " + direction;
-  const directionLabel = direction === "straight" ? "Straight" : direction === "right" ? "Right" : "Left";
-  const distanceLabel = Number.isFinite(measuredDistance) ? formatMeasuredDistance(measuredDistance) : distanceToNext + " m";
-  turnText.textContent = directionLabel;
-  distanceText.textContent = distanceLabel;
-  updateTopGuide(directionLabel, distanceLabel, next.name);
+  turnText.textContent = direction === "straight" ? "Straight" : direction === "right" ? "Right" : "Left";
+  distanceText.textContent = Number.isFinite(measuredDistance) ? formatMeasuredDistance(measuredDistance) : distanceToNext + " m";
   guideHint.textContent = "Next corner: " + next.name;
 }
 
@@ -691,10 +591,11 @@ async function startGuide() {
   route = routeBetween(currentPlace.id, destination.id);
   routeIndex = 0;
   guideTitle.textContent = currentPlace.name + " to " + destination.name;
-  const totalDistance = routeDistance(route);
-  guideHint.textContent = routeName(route) + " - fastest route, total " + formatMeasuredDistance(totalDistance);
-  document.body.classList.add("guiding");
-  scanFrame.style.display = "block";
+  const routeInfo = currentPlace.id === "gate" ? routeInfoForDestination(destination.id) : null;
+  if (routeInfo) {
+    guideHint.textContent = routeInfo.name + " - total " + formatMeasuredDistance(routeInfo.distance);
+  }
+  scanFrame.style.display = "none";
   arrowLayer.classList.add("active");
   modeText.textContent = "AR navigation active";
   showStep(stepGuide);
@@ -801,7 +702,6 @@ document.getElementById("autoScanBtn").addEventListener("click", startMarkerScan
 document.getElementById("nearestBtn").addEventListener("click", useNearestGpsPoint);
 document.getElementById("rescanBtn").addEventListener("click", () => {
   clearInterval(markerScanTimer);
-  document.body.classList.remove("guiding");
   scanFrame.style.display = "block";
   arrowLayer.classList.remove("active");
   modeText.textContent = "Scan starting building";
@@ -818,7 +718,6 @@ document.getElementById("nextNodeBtn").addEventListener("click", () => {
 document.getElementById("stopBtn").addEventListener("click", () => {
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   clearInterval(markerScanTimer);
-  document.body.classList.remove("guiding");
   location.href = "index.html";
 });
 
