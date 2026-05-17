@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Feedback | MSU-MCEST AR Campus Guide</title>
+
 <script src="orientation-lock.js" defer></script>
 <script src="supabase-config.js"></script>
+
 <style>
 :root {
   --text: #f8fafc;
@@ -15,103 +17,133 @@
   --accent: #f97316;
   --green: #1fbf75;
 }
+
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; font-family: "Segoe UI", Arial, sans-serif; color: var(--text); }
+
 body {
+  margin: 0;
+  min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 22px;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  padding: 20px;
   background:
     linear-gradient(135deg, rgba(249,115,22,.34), rgba(8,17,29,.72)),
-    url("images/2background.png") center / cover fixed,
-    #08111d;
+    url("images/2background.png") center/cover fixed;
 }
+
 .panel {
   width: min(560px, 100%);
-  border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--panel);
   backdrop-filter: blur(16px);
-  box-shadow: 0 22px 70px rgba(0,0,0,.34);
 }
-.eyebrow { margin: 0 0 8px; color: #fdba74; font-weight: 800; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
-p { color: var(--muted); line-height: 1.45; margin: 10px 0 20px; }
-.field { display: grid; gap: 7px; margin-bottom: 12px; }
-label { color: var(--muted); font-size: 13px; }
+
+h1 { margin: 0; font-size: 32px; }
+
+p { color: var(--muted); }
+
+.field {
+  margin-bottom: 12px;
+  display: grid;
+  gap: 6px;
+}
+
 input, select, textarea {
   width: 100%;
-  border: 1px solid var(--line);
+  padding: 10px;
   border-radius: 8px;
-  min-height: 46px;
-  padding: 10px 12px;
-  color: var(--text);
-  background: rgba(2,6,23,.62);
-  outline: none;
-  font: inherit;
+  border: 1px solid var(--line);
+  background: rgba(2,6,23,.6);
+  color: white;
 }
-textarea { min-height: 130px; resize: vertical; }
-input:focus, select:focus, textarea:focus { border-color: rgba(31,191,117,.8); }
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+
+textarea { min-height: 120px; }
+
 button, a {
-  min-height: 46px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
   display: grid;
   place-items: center;
-  padding: 10px 12px;
-  font: inherit;
-  font-weight: 800;
-  color: var(--text);
-  text-decoration: none;
-  background: rgba(255,255,255,.08);
-  cursor: pointer;
-}
-button { background: var(--accent); color: #111827; border-color: transparent; }
-.message {
-  display: none;
-  border: 1px solid rgba(31,191,117,.42);
+  height: 46px;
   border-radius: 8px;
-  padding: 10px;
-  color: #dcfce7;
-  background: rgba(31,191,117,.13);
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: none;
 }
+
+button {
+  background: var(--accent);
+  color: #111827;
+}
+
+a {
+  background: rgba(255,255,255,.1);
+  color: white;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.message {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  display: none;
+  background: rgba(31,191,117,.15);
+  border: 1px solid rgba(31,191,117,.4);
+  color: #dcfce7;
+}
+
 .message.active { display: block; }
-@media (max-width: 560px) { .actions { grid-template-columns: 1fr; } }
+
+@media (max-width: 600px) {
+  .actions { grid-template-columns: 1fr; }
+}
 </style>
 </head>
+
 <body>
-<main class="panel">
-  <p class="eyebrow">Student / Guest</p>
+
+<div class="panel">
   <h1>Send Feedback</h1>
-  <p>Share comments about a building, marker, or campus tour experience.</p>
+  <p>Share your campus experience.</p>
+
   <div id="message" class="message"></div>
+
   <form id="feedbackForm">
     <div class="field">
-      <label for="userName">Name</label>
+      <label>Name</label>
       <input id="userName" placeholder="Guest">
     </div>
+
     <div class="field">
-      <label for="buildingSelect">Building</label>
+      <label>Building</label>
       <select id="buildingSelect"></select>
     </div>
+
     <div class="field">
-      <label for="comment">Comment</label>
+      <label>Comment</label>
       <textarea id="comment" required></textarea>
     </div>
+
     <div class="actions">
-      <button type="submit">Submit Feedback</button>
+      <button type="submit">Submit</button>
       <a href="student.html">Back</a>
     </div>
   </form>
-</main>
+</div>
 
 <script>
-const STORAGE_KEY = "msuMcestBuildings";
 const API_BUILDINGS = "api/buildings.php";
-const API_FEEDBACK = "api/feedback.php";
 const SUPABASE_CONFIG = window.MSU_SUPABASE || {};
+
 const fallbackBuildings = [
   { id: "", name: "General Feedback" },
   { id: "gate", name: "Main Gate / Entrance" },
@@ -119,53 +151,55 @@ const fallbackBuildings = [
   { id: "dcs", name: "Department of Computer Science" },
   { id: "dhess", name: "Department of Humanities, Education, and Social Sciences" },
   { id: "secondary", name: "Secondary Department" },
-  { id: "hotel", name: "Dr. Magadapa A. Ringia Hotel" },
-  { id: "halal", name: "Halal Food Innovation Center / DTI-SSF" },
-  { id: "kitchen", name: "Kitchen Laboratory" },
-  { id: "tesda", name: "TESDA Training and Assessment Center" }
+  { id: "hotel", name: "Hotel Building" },
+  { id: "halal", name: "Halal Center" },
+  { id: "kitchen", name: "Kitchen Lab" },
+  { id: "tesda", name: "TESDA Center" }
 ];
 
 function showMessage(text) {
-  const message = document.getElementById("message");
-  message.textContent = text;
-  message.classList.add("active");
+  const msg = document.getElementById("message");
+  msg.textContent = text;
+  msg.classList.add("active");
 }
 
 async function loadBuildings() {
   let buildings = fallbackBuildings;
+
   try {
-    const response = await fetch(API_BUILDINGS);
-    const data = await response.json();
-    if (response.ok && data.ok && Array.isArray(data.buildings)) {
+    const res = await fetch(API_BUILDINGS);
+    const data = await res.json();
+
+    if (res.ok && data.ok && Array.isArray(data.buildings)) {
       buildings = [{ id: "", name: "General Feedback" }, ...data.buildings];
-    } else {
-      throw new Error("No database response.");
     }
-  } catch (error) {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (Array.isArray(saved) && saved.length) {
-        buildings = [{ id: "", name: "General Feedback" }, ...saved];
-      }
-    } catch (storageError) {}
-  }
+  } catch (e) {}
 
   const select = document.getElementById("buildingSelect");
   select.innerHTML = "";
-  buildings.forEach(building => select.add(new Option(building.name, building.id)));
+
+  buildings.forEach(b => {
+    select.add(new Option(b.name, b.id));
+  });
 }
 
+// ✅ SUPABASE ONLY
 async function submitToSupabase(payload) {
-  if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) return false;
+  const url = SUPABASE_CONFIG.url;
+  const key = SUPABASE_CONFIG.anonKey;
 
-  const table = SUPABASE_CONFIG.feedbackTable || "feedback";
-  const endpoint = `${SUPABASE_CONFIG.url.replace(/\/$/, "")}/rest/v1/${encodeURIComponent(table)}`;
-  const response = await fetch(endpoint, {
+  if (!url || !key) {
+    throw new Error("Supabase not configured");
+  }
+
+  const endpoint = `${url.replace(/\/$/, "")}/rest/v1/${SUPABASE_CONFIG.feedbackTable || "feedback"}`;
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "apikey": SUPABASE_CONFIG.anonKey,
-      "Authorization": `Bearer ${SUPABASE_CONFIG.anonKey}`,
+      "apikey": key,
+      "Authorization": `Bearer ${key}`,
       "Prefer": "return=minimal"
     },
     body: JSON.stringify({
@@ -175,65 +209,37 @@ async function submitToSupabase(payload) {
     })
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Supabase error ${response.status}: ${detail || response.statusText}`);
+  if (!res.ok) {
+    throw new Error(await res.text());
   }
-
-  return true;
 }
 
-async function submitToPhpApi(payload) {
-  const response = await fetch(API_FEEDBACK, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  const data = await response.json();
-  if (!response.ok || data.ok === false) {
-    throw new Error(data.message || "Feedback was not saved.");
-  }
-  return true;
-}
+document.getElementById("feedbackForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-function saveFeedbackLocally(payload) {
-  const saved = JSON.parse(localStorage.getItem("msuMcestFeedback") || "[]");
-  saved.push({ ...payload, date_created: new Date().toISOString() });
-  localStorage.setItem("msuMcestFeedback", JSON.stringify(saved));
-}
-
-document.getElementById("feedbackForm").addEventListener("submit", async event => {
-  event.preventDefault();
   const payload = {
     user_name: document.getElementById("userName").value.trim() || "Guest",
     marker_id: document.getElementById("buildingSelect").value,
     comment: document.getElementById("comment").value.trim()
   };
+
   if (!payload.comment) {
-    showMessage("Please enter your comment.");
+    showMessage("Please enter a comment.");
     return;
   }
+
   try {
-    await submitToPhpApi(payload);
+    await submitToSupabase(payload);
     document.getElementById("feedbackForm").reset();
-    showMessage("Feedback submitted to ar_campus.");
-  } catch (error) {
-    try {
-      if (await submitToSupabase(payload)) {
-        document.getElementById("feedbackForm").reset();
-        showMessage("Feedback submitted to Supabase backup.");
-        return;
-      }
-      throw error;
-    } catch (supabaseError) {
-      saveFeedbackLocally(payload);
-      document.getElementById("feedbackForm").reset();
-      showMessage("Feedback saved locally. XAMPP/MySQL and Supabase are not connected.");
-    }
+    showMessage("Feedback submitted successfully!");
+  } catch (err) {
+    console.error(err);
+    showMessage("Submission failed. Check Supabase setup.");
   }
 });
 
 loadBuildings();
 </script>
+
 </body>
 </html>
