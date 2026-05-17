@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AR Navigation | MSU-MCEST</title>
 <script src="orientation-lock.js" defer></script>
-<script src="vendor/jsqr/jsQR.js"></script>
 <style>
 :root {
   --text: #f8fafc;
@@ -209,10 +208,11 @@ button.orange { background: var(--accent); color: #111827; border-color: rgba(25
   <div id="notice" class="notice"></div>
   <div id="stepScan" class="step active">
     <h1>Scan Building</h1>
-    <p>Point the phone camera at a printed building QR marker, then choose a destination.</p>
+    <p>Point the phone camera at a building marker. If no marker is available, GPS will choose the nearest campus point.</p>
     <div class="row">
       <select id="startSelect" aria-label="Detected starting building"></select>
       <button id="autoScanBtn">Auto Scan Marker</button>
+      <button id="nearestBtn">Use Nearest GPS Point</button>
       <button id="scanBtn" class="orange">Use This Building</button>
     </div>
   </div>
@@ -702,59 +702,46 @@ async function startGuide() {
   updateArrow();
 }
 
-function markerIdFromPayload(rawValue) {
-  const value = String(rawValue || "").trim().toLowerCase();
-  const markerPrefix = "msu-mcest:";
-  if (value.includes(markerPrefix)) {
-    return value.slice(value.lastIndexOf(markerPrefix) + markerPrefix.length).trim();
+function useNearestGpsPoint() {
+  if (!navigator.geolocation) {
+    modeText.textContent = "GPS is not available";
+    return;
   }
-  return value.replace(/^.*[?#/]marker=/, "").replace(/[^a-z0-9_-]/g, "");
-}
-
-function applyScannedMarker(rawValue) {
-  const markerId = markerIdFromPayload(rawValue);
-  const matched = findPlace(markerId);
-  if (!matched) return false;
-
-  clearInterval(markerScanTimer);
-  currentPlace = matched;
-  currentGps = null;
-  startSelect.value = matched.id;
-  modeText.textContent = "Scanned: " + matched.name;
-  showStep(stepDestination);
-  return true;
-}
-
-function scanFrameWithJsQr(canvas, ctx) {
-  if (typeof jsQR !== "function") return false;
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const result = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: "attemptBoth"
+  modeText.textContent = "Finding nearest GPS point...";
+  navigator.geolocation.getCurrentPosition(position => {
+    currentGps = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude
+    };
+    const nearest = nearestPlaceTo(currentGps);
+    if (nearest) {
+      currentPlace = nearest.place;
+      startSelect.value = currentPlace.id;
+      modeText.textContent = "Nearest point: " + currentPlace.name + " (" + nearest.distance + " m)";
+      showStep(stepDestination);
+    }
+  }, () => {
+    modeText.textContent = "GPS permission denied or unavailable";
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 1000,
+    timeout: 12000
   });
-  return result ? applyScannedMarker(result.data) : false;
 }
 
 async function startMarkerScan() {
-  if ("BarcodeDetector" in window && !markerDetector) {
-    try {
-      markerDetector = new BarcodeDetector({ formats: ["qr_code"] });
-    } catch (error) {
-      markerDetector = null;
-    }
+  if (!("BarcodeDetector" in window)) {
+    modeText.textContent = "Marker scan unsupported, trying GPS";
+    useNearestGpsPoint();
+    return;
+  }
+  if (!markerDetector) {
+    markerDetector = new BarcodeDetector({ formats: ["qr_code"] });
   }
   const video = document.getElementById("camera");
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  if (!cameraStream) {
-    await startCamera();
-  }
-  if (!markerDetector && typeof jsQR !== "function") {
-    modeText.textContent = "QR scanner is unavailable in this browser.";
-    setNotice("Use Chrome or Edge, or keep the local jsQR file in vendor/jsqr/jsQR.js.");
-    return;
-  }
-  modeText.textContent = "Scanning QR marker...";
-  setNotice("");
+  modeText.textContent = "Scanning marker...";
   clearInterval(markerScanTimer);
   markerScanTimer = setInterval(async () => {
     if (!video.videoWidth || !video.videoHeight) return;
@@ -762,17 +749,20 @@ async function startMarkerScan() {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     try {
-      if (markerDetector) {
-        const codes = await markerDetector.detect(canvas);
-        if (codes[0]?.rawValue && applyScannedMarker(codes[0].rawValue)) {
-          return;
-        }
+      const codes = await markerDetector.detect(canvas);
+      const rawValue = codes[0]?.rawValue || "";
+      const markerId = rawValue.replace("msu-mcest:", "").trim().toLowerCase();
+      const matched = findPlace(markerId);
+      if (matched) {
+        clearInterval(markerScanTimer);
+        currentPlace = matched;
+        startSelect.value = matched.id;
+        modeText.textContent = "Scanned: " + matched.name;
+        showStep(stepDestination);
       }
-      scanFrameWithJsQr(canvas, ctx);
     } catch (error) {
-      if (!scanFrameWithJsQr(canvas, ctx)) {
-        modeText.textContent = "Keep the QR marker inside the scan box.";
-      }
+      clearInterval(markerScanTimer);
+      modeText.textContent = "Marker scan stopped";
     }
   }, 700);
 }
@@ -783,6 +773,7 @@ async function bootNavigation() {
   await loadPlacesFromBackend();
   fillSelects();
   await startCamera();
+  startRealtimeTracking();
   setTimeout(() => {
     if (stepScan.classList.contains("active")) startMarkerScan();
   }, 900);
@@ -807,6 +798,7 @@ document.getElementById("scanBtn").addEventListener("click", () => {
   showStep(stepDestination);
 });
 document.getElementById("autoScanBtn").addEventListener("click", startMarkerScan);
+document.getElementById("nearestBtn").addEventListener("click", useNearestGpsPoint);
 document.getElementById("rescanBtn").addEventListener("click", () => {
   clearInterval(markerScanTimer);
   document.body.classList.remove("guiding");
