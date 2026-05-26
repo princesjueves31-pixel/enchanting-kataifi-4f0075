@@ -18,7 +18,7 @@ body {
 
 #info {
   position: fixed;
-  top: 10px;
+  top: 58px;
   left: 10px;
   background: rgba(0,0,0,0.6);
   color: white;
@@ -26,6 +26,76 @@ body {
   font-size: 13px;
   border-radius: 8px;
   z-index: 10;
+}
+
+#backButton {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 14;
+  min-width: 44px;
+  height: 40px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.58);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+#backButton:active {
+  background: rgba(37,99,235,0.85);
+}
+
+#loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  transition: opacity 260ms ease, visibility 260ms ease;
+}
+
+#loadingOverlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading-panel {
+  width: min(320px, calc(100vw - 40px));
+}
+
+.loading-title {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.loading-bar {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+}
+
+#loadingFill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: #38bdf8;
+  transition: width 180ms ease;
+}
+
+#loadingDetail {
+  margin-top: 10px;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
 }
 
 #crosshair {
@@ -107,6 +177,14 @@ body {
 
 <body>
 
+<div id="loadingOverlay">
+  <div class="loading-panel">
+    <div class="loading-title">Loading campus tour</div>
+    <div class="loading-bar"><div id="loadingFill"></div></div>
+    <div id="loadingDetail">Preparing 3D campus...</div>
+  </div>
+</div>
+<button id="backButton" type="button" aria-label="Back">Back</button>
 <div id="info">Loading...</div>
 <div id="crosshair"></div>
 <div id="touchControls">
@@ -130,6 +208,29 @@ import { GLTFLoader } from "./vendor/three/GLTFLoader.js";
 import { DRACOLoader } from "./vendor/three/DRACOLoader.js";
 import { PointerLockControls } from "./vendor/three/PointerLockControls.js";
 
+const IS_MOBILE = matchMedia("(pointer: coarse), (max-width: 900px)").matches;
+const loadingOverlay = document.getElementById("loadingOverlay");
+const loadingFill = document.getElementById("loadingFill");
+const loadingDetail = document.getElementById("loadingDetail");
+const backButton = document.getElementById("backButton");
+
+function setLoadingProgress(percent, message) {
+  loadingFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  loadingDetail.textContent = message;
+}
+
+function hideLoadingOverlay() {
+  loadingOverlay.classList.add("hidden");
+}
+
+backButton.addEventListener("click", () => {
+  if (history.length > 1) {
+    history.back();
+  } else {
+    location.href = "index.html";
+  }
+});
+
 /* =========================
 SCENE
 ========================= */
@@ -152,9 +253,12 @@ camera.position.set(0, CAMERA_HEIGHT, 8);
 RENDERER
 ========================= */
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({
+  antialias: !IS_MOBILE,
+  powerPreference: IS_MOBILE ? "low-power" : "high-performance"
+});
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, IS_MOBILE ? 1.25 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.42;
@@ -1025,10 +1129,11 @@ loader.load(
 
   MODEL_PATH,
 
-  (gltf) => {
+  async (gltf) => {
 
     const model = gltf.scene;
     scene.add(model);
+    setLoadingProgress(72, "Preparing required campus model...");
 
     /* SCALE */
     const box = new THREE.Box3().setFromObject(model);
@@ -1045,14 +1150,16 @@ loader.load(
     model.updateMatrixWorld(true);
     setupCampusBounds(model);
     addRoadAndSidewalkOverlay(model);
-    addSkyClouds();
 
     /* COLLIDERS */
     const fallbackColliders = [];
+    let processedMeshes = 0;
 
     model.traverse(child => {
 
       if (!child.isMesh) return;
+      processedMeshes++;
+      child.frustumCulled = true;
 
       const name = (child.name || "").toLowerCase();
 
@@ -1105,6 +1212,9 @@ loader.load(
       fallbackColliders.push(colliderBox);
     });
 
+    setLoadingProgress(88, `Prepared ${processedMeshes} campus objects...`);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
     if (colliders.length === 0) {
       colliders.push(...fallbackColliders);
     }
@@ -1115,8 +1225,13 @@ loader.load(
     controls.getObject().lookAt(spawn.lookTarget);
     camera.lookAt(spawn.lookTarget);
 
+    setLoadingProgress(94, "Adding sky and lighting details...");
+    addSkyClouds();
+
     document.getElementById("info").textContent =
       "Loaded successfully | Camera: " + CAMERA_HEIGHT + " | Colliders: " + colliders.length;
+    setLoadingProgress(100, "Campus ready.");
+    window.setTimeout(hideLoadingOverlay, 220);
 
   },
 
@@ -1126,8 +1241,9 @@ loader.load(
       ? Math.round((xhr.loaded / xhr.total) * 100)
       : 0;
 
+    setLoadingProgress(percent || 8, xhr.total ? `Downloading campus model... ${percent}%` : "Downloading campus model...");
     document.getElementById("info").textContent =
-      "Loading... " + percent + "%";
+      "Loading... " + (percent || "") + "%";
   },
 
   (error) => {
@@ -1136,6 +1252,7 @@ loader.load(
 
     document.getElementById("info").textContent =
       "Failed loading GLB: " + (error?.message || "check file path / Live Server folder");
+    loadingDetail.textContent = "Failed loading campus model.";
   }
 );
 
@@ -1202,6 +1319,7 @@ window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, IS_MOBILE ? 1.25 : 2));
 });
 
 </script>

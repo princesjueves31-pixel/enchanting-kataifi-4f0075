@@ -5,832 +5,1780 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AR Navigation | MSU-MCEST</title>
 <script src="orientation-lock.js" defer></script>
-<script src="vendor/jsqr/jsQR.js"></script>
 <style>
 :root {
   --text: #f8fafc;
-  --muted: #cbd5e1;
-  --panel: rgba(7, 18, 31, .82);
-  --accent: #f97316;
+  --muted: rgba(255,255,255,.72);
+  --panel: rgba(34, 18, 11, .58);
+  --panel-strong: rgba(18, 12, 9, .74);
+  --accent: #37b8f6;
+  --accent-light: #a9f2ff;
+  --accent-deep: #1298dd;
   --ok: #22c55e;
-  --line: rgba(255,255,255,.18);
   --warn: #facc15;
+  --line: rgba(255,255,255,.22);
 }
+
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; font-family: "Segoe UI", Arial, sans-serif; color: var(--text); background: #07121f; }
-body { overflow: hidden; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+  color: var(--text);
+  background: #0f0d0c;
+  overflow: hidden;
+}
+
 video, .camera-fallback {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: radial-gradient(circle at 50% 35%, #28445d, #07121f 64%);
+  background:
+    linear-gradient(90deg, #5d2b18 0 11%, #d09d60 11% 29%, #ad7450 29% 47%, #f1bd82 47% 64%, #c4693d 64% 84%, #7d351e 84%),
+    linear-gradient(180deg, #8f4f2e 0 49%, #8b4425 49% 63%, #b99b70 63% 100%);
 }
-.camera-fallback { display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
-.shade { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.68), transparent 28%, transparent 60%, rgba(0,0,0,.78)); pointer-events: none; }
-.topbar {
-  position: fixed;
-  top: max(14px, env(safe-area-inset-top));
-  left: 14px;
-  right: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  z-index: 5;
+
+video {
+  z-index: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .2s ease;
 }
-.pill, button, select {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--text);
-  border-radius: 8px;
-  min-height: 42px;
+
+body.camera-ready video {
+  opacity: 1;
+  visibility: visible;
 }
-.pill { padding: 10px 12px; font-size: 13px; backdrop-filter: blur(12px); }
-.home { color: var(--text); text-decoration: none; padding: 10px 12px; }
-.guide-status {
-  display: none;
-  width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.guide-stat {
-  min-width: 0;
-  padding: 8px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  backdrop-filter: blur(12px);
-}
-.guide-stat small {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.guide-stat strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.camera-fallback {
+  z-index: 1;
+  display: grid;
+  place-items: end center;
+  height: 100%;
+  inset: 0;
+  padding: 24px 16px calc(26px + env(safe-area-inset-bottom));
+  text-align: center;
+  color: rgba(255,255,255,.82);
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.06) 48%, rgba(0,0,0,.34)),
+    url("images/1background.png") center / cover no-repeat,
+    linear-gradient(90deg, #5d2b18 0 11%, #d09d60 11% 29%, #ad7450 29% 47%, #f1bd82 47% 64%, #c4693d 64% 84%, #7d351e 84%);
   font-size: 13px;
 }
-.guiding .topbar { align-items: stretch; }
-.guiding #modeText,
-.guiding .home,
-.guiding .panel {
+
+.hidden { display: none !important; }
+
+.shade {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.2), transparent 28%, rgba(0,0,0,.12) 68%, rgba(0,0,0,.38)),
+    radial-gradient(circle at 50% 52%, transparent 0 34%, rgba(0,0,0,.16) 76%);
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 14px;
+  min-height: calc(60px + env(safe-area-inset-top));
+  padding: calc(13px + env(safe-area-inset-top)) 22px 13px;
+  background: rgba(46, 24, 14, .48);
+  backdrop-filter: blur(14px) saturate(130%);
+  border-bottom: 0;
+}
+
+.back-btn {
+  position: relative;
+  width: 30px;
+  height: 34px;
+  flex: 0 0 30px;
+  overflow: hidden;
+  text-indent: -999px;
+  white-space: nowrap;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.back-btn::before,
+.back-btn::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 20px;
+  height: 5px;
+  border-radius: 999px;
+  background: #fff;
+  transform-origin: 2px 50%;
+}
+
+.back-btn::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.back-btn::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.navbar::after {
+  content: "";
+  margin-left: auto;
+}
+
+.navbar .stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.navbar .stat {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.navbar .stat span {
+  display: block;
+  min-width: 0;
+  font-size: clamp(15px, 3.6vw, 21px);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.navbar .stat strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-size: clamp(18px, 4.4vw, 26px);
+  line-height: 1.05;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.navbar .stat small {
   display: none;
 }
-.guiding .guide-status { display: grid; }
+
+.arrow-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.arrow-wrap {
+  width: min(51vw, 270px);
+  aspect-ratio: 1.65;
+  display: grid;
+  place-items: center;
+  transform: translateY(17vh);
+  filter: drop-shadow(0 20px 20px rgba(0,0,0,.28));
+}
+
+.arrow {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-origin: 50% 66%;
+  transition: transform .22s ease-out;
+}
+
+.arrow::before,
+.arrow::after {
+  content: "";
+  position: absolute;
+  bottom: 18%;
+  width: 55%;
+  height: 40%;
+  background: linear-gradient(180deg, var(--accent-light), #5ed7fb 50%, var(--accent-deep) 51%, #0d8cd5);
+  box-shadow: inset 0 1px rgba(255,255,255,.5);
+}
+
+.arrow::before {
+  right: 50%;
+  transform: skewY(-42deg);
+  transform-origin: 100% 100%;
+  border-radius: 16px 0 8px 16px;
+}
+
+.arrow::after {
+  left: 50%;
+  transform: skewY(42deg);
+  transform-origin: 0 100%;
+  border-radius: 0 16px 16px 8px;
+}
+
+.arrow .arrow-ridge {
+  position: absolute;
+  left: 50%;
+  bottom: 19%;
+  width: 2px;
+  height: 54%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,.22);
+}
+
+.bearing-pill {
+  position: fixed;
+  top: calc(70px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0,0,0,.2);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  color: rgba(255,255,255,.78);
+  white-space: nowrap;
+}
+
 .panel {
   position: fixed;
-  left: 14px;
-  right: 14px;
-  bottom: max(14px, env(safe-area-inset-bottom));
-  z-index: 4;
-  background: var(--panel);
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 16;
+  max-height: min(48vh, 430px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
+  background: rgba(19, 14, 12, .72);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
   backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
 }
-.step { display: none; }
-.step.active { display: block; }
-h1, h2 { margin: 0 0 10px; letter-spacing: 0; }
-h1 { font-size: 22px; }
-h2 { font-size: 18px; }
-p { margin: 0 0 12px; color: var(--muted); line-height: 1.4; }
-.row { display: grid; grid-template-columns: 1fr; gap: 9px; }
-select, button { width: 100%; padding: 11px 12px; font: inherit; }
-button { background: #17413d; font-weight: 700; cursor: pointer; }
-button.secondary { background: rgba(15,23,42,.72); }
-button.orange { background: var(--accent); color: #111827; border-color: rgba(255,255,255,.35); }
-.scan-frame {
-  position: fixed;
-  top: 19%;
-  left: 50%;
-  width: min(76vw, 360px);
-  aspect-ratio: 1.35;
-  transform: translateX(-50%);
-  border: 3px solid rgba(255,255,255,.88);
+
+.panel h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.panel p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.row {
+  display: grid;
+  gap: 10px;
+}
+
+.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+select, button {
+  width: 100%;
+  min-height: 44px;
   border-radius: 8px;
-  z-index: 2;
-  box-shadow: 0 0 0 999px rgba(0,0,0,.18);
+  border: 1px solid var(--line);
+  font: inherit;
 }
-.guiding .scan-frame {
-  top: 26%;
-  width: min(86vw, 430px);
-  border-color: rgba(34,197,94,.88);
-  box-shadow: 0 0 0 999px rgba(0,0,0,.08), 0 0 24px rgba(34,197,94,.28);
+
+select {
+  color: var(--text);
+  background: rgba(255,255,255,.08);
+  padding: 0 10px;
 }
-.scan-frame::after {
-  content: "";
-  position: absolute;
+
+option {
+  color: #111827;
+  background: #ffffff;
+}
+
+button {
+  background: #17413d;
+  color: var(--text);
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #111827;
+  border-color: rgba(255,255,255,.32);
+}
+
+button.secondary {
+  background: rgba(255,255,255,.08);
+}
+
+.status {
+  min-height: 18px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+
+.instruction {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(55,184,246,.5);
+  border-radius: 8px;
+  background: rgba(55,184,246,.14);
+  color: #d8f8ff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.route-map {
+  margin-top: 10px;
+  height: 118px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.06);
+  overflow: hidden;
+}
+
+.route-map svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.route-map text {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.route-map .route-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.route-map .route-node {
+  fill: #0f172a;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.route-map .route-current {
+  fill: var(--ok);
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.toast {
+  position: fixed;
   left: 12px;
   right: 12px;
-  top: 50%;
-  height: 2px;
-  background: var(--ok);
-  box-shadow: 0 0 16px var(--ok);
-  animation: scan 1.8s ease-in-out infinite;
-}
-@keyframes scan {
-  0%,100% { transform: translateY(-58px); }
-  50% { transform: translateY(58px); }
-}
-.arrow-layer {
-  position: fixed;
-  inset: 0;
+  top: calc(196px + env(safe-area-inset-top));
+  z-index: 18;
   display: none;
-  place-items: center;
-  z-index: 3;
-  pointer-events: none;
-}
-.arrow-layer.active { display: grid; }
-.arrow {
-  width: min(46vw, 210px);
-  height: min(46vw, 210px);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: rgba(249,115,22,.18);
-  border: 2px solid rgba(249,115,22,.7);
-  font-size: min(23vw, 110px);
-  line-height: 1;
-  text-shadow: 0 8px 26px rgba(0,0,0,.6);
-}
-.arrow.left { transform: rotate(-90deg); }
-.arrow.right { transform: rotate(90deg); }
-.arrow.straight { transform: rotate(0deg); }
-.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
-.stat { border: 1px solid var(--line); border-radius: 8px; padding: 9px; }
-.stat small { color: var(--muted); display: block; margin-bottom: 3px; }
-.notice {
-  display: none;
-  margin-bottom: 10px;
-  padding: 10px;
-  border: 1px solid rgba(250,204,21,.5);
+  padding: 11px 12px;
+  border: 1px solid rgba(250,204,21,.55);
   border-radius: 8px;
-  background: rgba(250,204,21,.12);
-  color: #fef9c3;
+  background: rgba(30, 25, 12, .92);
+  color: #fef3c7;
   font-size: 13px;
-  line-height: 1.35;
+  backdrop-filter: blur(12px);
 }
-.notice.active { display: block; }
-.hidden { display: none; }
-@media (min-width: 760px) {
-  .panel { width: 430px; left: 18px; right: auto; }
-  .topbar { left: 18px; right: 18px; }
-  .guide-status { max-width: 620px; margin: 0 auto; }
+
+.toast.active,
+.navigating .toast.active {
+  display: none;
+}
+
+.guide-hud {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  z-index: 15;
+  display: none;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.guide-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 12, 10, .36);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 40px rgba(0,0,0,.28);
+}
+
+.guide-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.navigating .panel {
+  display: none;
+}
+
+.navigating .guide-hud {
+  display: none;
+}
+
+.navigating .bearing-pill {
+  display: none;
+  top: calc(70px + env(safe-area-inset-top));
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#rotateAdvice,
+body.navigating #rotateAdvice {
+  display: none !important;
+}
+
+body.camera-ready .camera-fallback {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .navbar {
+    gap: 10px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .navbar .stats {
+    gap: 10px;
+  }
+  .navbar .stat span {
+    font-size: 14px;
+  }
+  .navbar .stat strong {
+    font-size: 19px;
+  }
+  .two { grid-template-columns: 1fr; }
+  .panel {
+    max-height: 42vh;
+    padding: 12px;
+  }
+  .navigating .arrow-wrap {
+    width: min(52vw, 250px);
+    transform: translateY(16vh);
+  }
+  .guide-card {
+    padding: 10px;
+  }
+  .route-map {
+    height: 92px;
+  }
 }
 </style>
 </head>
 <body>
 <video id="camera" autoplay playsinline muted></video>
-<div id="fallback" class="camera-fallback hidden">Camera preview is unavailable. The navigation controls still work in demo mode.</div>
+<div id="fallback" class="camera-fallback" aria-hidden="true"></div>
 <div class="shade"></div>
-<div id="scanFrame" class="scan-frame"></div>
-<div id="arrowLayer" class="arrow-layer">
-  <div id="arrow" class="arrow straight">&uarr;</div>
+
+<div class="navbar">
+  <button id="backBtn" class="back-btn" type="button" aria-label="Back">Back</button>
+  <section class="stats" aria-label="Navigation status">
+    <div class="stat">
+      <span>Estimate Time</span>
+      <strong id="etaText">--</strong>
+      <small id="accuracyText">Waiting for GPS</small>
+    </div>
+    <div class="stat">
+      <span>Distance</span>
+      <strong id="distanceText">-- m</strong>
+      <small id="trendText">Choose route</small>
+    </div>
+  </section>
 </div>
 
-<header class="topbar">
-  <span id="modeText" class="pill">Scan starting building</span>
-  <div id="guideStatus" class="guide-status" aria-live="polite">
-    <div class="guide-stat"><small>Direction</small><strong id="topTurnText">Straight</strong></div>
-    <div class="guide-stat"><small>Distance</small><strong id="topDistanceText">-- m</strong></div>
-    <div class="guide-stat"><small>Next corner</small><strong id="topNextText">--</strong></div>
+<div class="bearing-pill" id="bearingText">Arrow will point to destination</div>
+
+<div class="arrow-layer">
+  <div class="arrow-wrap">
+    <div id="arrow" class="arrow" aria-hidden="true"><span class="arrow-ridge"></span></div>
   </div>
-  <a class="pill home" href="index.html">Home</a>
-</header>
+</div>
 
 <section class="panel">
-  <div id="notice" class="notice"></div>
-  <div id="stepScan" class="step active">
-    <h1>Scan Building</h1>
-    <p>Point the phone camera at a printed building QR marker, then choose a destination.</p>
-    <div class="row">
-      <select id="startSelect" aria-label="Detected starting building"></select>
-      <button id="autoScanBtn">Auto Scan Marker</button>
-      <button id="scanBtn" class="orange">Use This Building</button>
+  <h3>Route Selection</h3>
+  <p>Select where you are and where you want to go. On a phone, allow camera, location, and motion/compass permissions.</p>
+  <div class="row">
+    <div class="row two">
+      <label>
+        Current building
+        <select id="startSelect"></select>
+      </label>
+      <label>
+        Destination
+        <select id="destinationSelect"></select>
+      </label>
+    </div>
+    <div class="row two">
+      <button id="useGpsBtn" class="secondary">Use My GPS</button>
+      <button id="startBtn" class="primary">Start Navigation</button>
     </div>
   </div>
+  <div id="routeText" class="status">Fastest path will appear after starting navigation.</div>
+  <div id="statusText" class="status">No marker scanning needed.</div>
+</section>
 
-  <div id="stepDestination" class="step">
-    <h2>Choose Destination</h2>
-    <p>The route will start from the scanned building. Pick one destination for the AR arrow to guide you.</p>
-    <div class="row">
-      <select id="destinationSelect" aria-label="Destination building"></select>
-      <button id="startNavBtn" class="orange">Start AR Guide</button>
-      <button id="rescanBtn" class="secondary">Scan Again</button>
-    </div>
-  </div>
-
-  <div id="stepGuide" class="step">
-    <h2 id="guideTitle">Follow Arrow</h2>
-    <p id="guideHint">Keep the phone upright and follow the single arrow.</p>
-    <div class="status-grid">
-      <div class="stat"><small>Direction</small><strong id="turnText">Straight</strong></div>
-      <div class="stat"><small>Distance</small><strong id="distanceText">-- m</strong></div>
-      <div class="stat"><small>GPS</small><strong id="gpsText">Waiting</strong></div>
-    </div>
-    <div class="row">
-      <button id="nextNodeBtn">Manual Next Corner</button>
-      <button id="stopBtn" class="secondary">Stop Navigation</button>
+<section class="guide-hud" aria-label="Active navigation">
+  <div class="guide-card">
+    <div id="instructionText" class="instruction">Choose a route to begin.</div>
+    <div id="routeMap" class="route-map" aria-label="Route mini map"></div>
+    <div class="guide-actions">
+      <button id="changeRouteBtn" class="secondary">Change Route</button>
     </div>
   </div>
 </section>
 
+<div id="calibrationToast" class="toast">Move your phone in a figure-8 motion to calibrate compass.</div>
+
 <script>
-const STORAGE_KEY = "msuMcestBuildings";
-const API_BUILDINGS = "api/buildings.php";
-const defaultPlaces = [
-  { id: "gate", name: "Main Gate / Entrance", lat: 8.15626, lng: 123.95448 },
-  { id: "jhs", name: "JHS", lat: 8.15626, lng: 123.95443 },
-  { id: "caf", name: "CAF", lat: 8.15628, lng: 123.95453 },
-  { id: "guidance_right", name: "Claudio Cabug Memorial Building - Guidance", lat: 8.15634, lng: 123.95470 },
-  { id: "basketball", name: "Basketball Court", lat: 8.15656, lng: 123.95496 },
-  { id: "cabug", name: "College Department Building - Cabug", lat: 8.15682, lng: 123.95498 },
-  { id: "peacepark", name: "Peace Park", lat: 8.15696, lng: 123.95496 },
-  { id: "gym", name: "Campus Gymnasium", lat: 8.15712, lng: 123.95493 },
-  { id: "old_registrar_cashier", name: "Old Registrar / Cashier", lat: 8.15724, lng: 123.95486 },
-  { id: "admin", name: "Administration Building", lat: 8.15730, lng: 123.95478 },
-  { id: "ringia", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.15734, lng: 123.95468 },
-  { id: "palawan", name: "Palawan Building", lat: 8.15736, lng: 123.95456 },
-  { id: "sixteenth", name: "16th Building / Basketball Area", lat: 8.15732, lng: 123.95442 },
-  { id: "pavilion_right", name: "Pavilion - Right Path", lat: 8.15722, lng: 123.95433 },
-  { id: "tambayan_dorm", name: "Tambayan Dorm", lat: 8.15708, lng: 123.95427 },
-  { id: "dorm_right", name: "Dorm - Right Path", lat: 8.15694, lng: 123.95423 },
-  { id: "executive_dorm", name: "Executive Dorm", lat: 8.15678, lng: 123.95422 },
-  { id: "isl", name: "ISL Building", lat: 8.15664, lng: 123.95423 },
-  { id: "tambayan_isl", name: "Tambayan ISL", lat: 8.15650, lng: 123.95425 },
-  { id: "dit", name: "DIT", lat: 8.15640, lng: 123.95430 },
-  { id: "front_isl", name: "Front of ISL Building", lat: 8.15634, lng: 123.95435 },
-  { id: "fab_shop", name: "Industrial Technology Workshops - Fab Shop / Back of Registrar", lat: 8.15630, lng: 123.95440 },
-  { id: "dti", name: "DTI", lat: 8.15628, lng: 123.95445 },
-  { id: "guidance_left", name: "Guidance - Left Path", lat: 8.15644, lng: 123.95438 },
-  { id: "medical_rooms", name: "Health Services Building - Medical Rooms", lat: 8.15658, lng: 123.95438 },
-  { id: "comlab", name: "Computer Laboratory", lat: 8.15672, lng: 123.95439 },
-  { id: "avr", name: "AVR", lat: 8.15686, lng: 123.95441 },
-  { id: "registrar", name: "Academic Building - Registrar", lat: 8.15700, lng: 123.95444 },
-  { id: "det", name: "Engineering Technology Building - DET", lat: 8.15714, lng: 123.95448 },
-  { id: "tambayan_left_1", name: "Tambayan - Left Path 1", lat: 8.15724, lng: 123.95453 },
-  { id: "tambayan_left_2", name: "Tambayan - Left Path 2", lat: 8.15732, lng: 123.95458 },
-  { id: "new_cr", name: "New CR", lat: 8.15739, lng: 123.95464 },
-  { id: "dorm_left", name: "Dorm - Left Path", lat: 8.15744, lng: 123.95470 },
-  { id: "pavilion_left", name: "Pavilion - Left Path", lat: 8.15746, lng: 123.95478 },
-  { id: "sixteenth_left", name: "16th Building - Left Path", lat: 8.15743, lng: 123.95488 },
-  { id: "sdc", name: "SDC", lat: 8.15730, lng: 123.95492 }
+const PLACES = [
+  { id: "main-gate", name: "Main Gate", lat: 8.160888, lng: 123.959633 },
+  { id: "claudio-cabug", name: "Claudio Cabug Building", lat: 8.161081, lng: 123.959652 },
+  { id: "medical-rooms", name: "Medical Rooms", lat: 8.161172, lng: 123.959541 },
+  { id: "computer-laboratory", name: "Computer Laboratory", lat: 8.161286, lng: 123.959492 },
+  { id: "avr", name: "AVR", lat: 8.161400, lng: 123.959478 },
+  { id: "cafeteria", name: "Cafeteria", lat: 8.160929, lng: 123.959148 },
+  { id: "jhs", name: "JHS", lat: 8.160751, lng: 123.959038 },
+  { id: "tennis-court", name: "Tennis Court", lat: 8.161079, lng: 123.959396 },
+  { id: "academic-building", name: "Academic Building", lat: 8.161501, lng: 123.959246 },
+  { id: "det", name: "DET", lat: 8.161572, lng: 123.959357 },
+  { id: "dti", name: "DTI", lat: 8.161261, lng: 123.959116 },
+  { id: "college-department", name: "College Department Building", lat: 8.161396, lng: 123.960133 },
+  { id: "rotc-office", name: "ROTC Office", lat: 8.161292, lng: 123.959984 },
+  { id: "flagpole", name: "Flagpole", lat: 8.161147, lng: 123.959904 },
+  { id: "basketball-court", name: "Basketball Court", lat: 8.161271, lng: 123.959723 },
+  { id: "dit-laboratories", name: "DIT Laboratories", lat: 8.161770, lng: 123.958850 },
+  { id: "isl", name: "ISL", lat: 8.161979, lng: 123.958622 },
+  { id: "dit", name: "DIT", lat: 8.161751, lng: 123.958410 },
+  { id: "college-annex", name: "College Annex Building", lat: 8.162538, lng: 123.959358 },
+  { id: "pavilion", name: "Pavilion", lat: 8.162259, lng: 123.959218 },
+  { id: "oval", name: "Oval", lat: 8.162034, lng: 123.959761 },
+  { id: "palawan-building", name: "Palawan Building", lat: 8.162623, lng: 123.959817 },
+  { id: "ringia-hotel", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.162148, lng: 123.960077 },
+  { id: "administration", name: "Administration Building", lat: 8.161952, lng: 123.960196 },
+  { id: "campus-gym", name: "Campus Gymnasium", lat: 8.161643, lng: 123.960348 },
+  { id: "badminton-court", name: "Badminton Court", lat: 8.161393, lng: 123.960502 },
+  { id: "sdc", name: "SDC", lat: 8.161628, lng: 123.959504 },
+  { id: "tambayan-a", name: "Tambayan a", lat: 8.161829, lng: 123.959076 },
+  { id: "tambayan-b", name: "Tambayan b", lat: 8.161885, lng: 123.959140 },
+  { id: "fab-shop", name: "Fab. Shop / SHS Smaw LAB", lat: 8.161497, lng: 123.958988 },
+  { id: "girls-dormitories", name: "Girl's Dormitories", lat: 8.162279, lng: 123.958925 },
+  { id: "executive-house", name: "Executive House", lat: 8.162100, lng: 123.958953 },
+  { id: "intersection-a", name: "Intersection A (straight)", lat: 8.160934, lng: 123.959610, selectable: false },
+  { id: "intersection-b", name: "Intersection B (right)", lat: 8.160957, lng: 123.959656, selectable: false },
+  { id: "intersection-c", name: "Intersection C (left)", lat: 8.160932, lng: 123.959528, selectable: false },
+  { id: "intersection-d", name: "Intersection D (left DTI)", lat: 8.161299, lng: 123.959298, selectable: false },
+  { id: "intersection-e", name: "Intersection E (left ISL)", lat: 8.162050, lng: 123.958949, selectable: false }
 ];
 
-let places = defaultPlaces;
+const WALKING_SPEED_MPS = 1.25;
+const ARRIVAL_RADIUS_M = 7;
+const MAX_USABLE_ACCURACY_M = 35;
+const GOOD_ACCURACY_M = 18;
+const MAX_WALKING_JUMP_MPS = 4.2;
+const OFF_ROUTE_DISTANCE_M = 22;
+const REROUTE_COOLDOWN_MS = 8000;
+const STANDING_STILL_MS = 9000;
+const CAMERA_RETRY_DELAY_MS = 600;
+const ROUTE_LINKS = [
+  ["main-gate", "intersection-a"],
+  ["main-gate", "intersection-b"],
+  ["main-gate", "intersection-c"],
+  ["intersection-a", "claudio-cabug"],
+  ["intersection-b", "claudio-cabug"],
+  ["intersection-c", "tennis-court"],
+  ["claudio-cabug", "flagpole"],
+  ["claudio-cabug", "tennis-court"],
+  ["claudio-cabug", "medical-rooms"],
+  ["medical-rooms", "computer-laboratory"],
+  ["medical-rooms", "tennis-court"],
+  ["computer-laboratory", "avr"],
+  ["avr", "academic-building"],
+  ["avr", "det"],
+  ["dti", "academic-building"],
+  ["academic-building", "intersection-d"],
+  ["intersection-d", "dti"],
+  ["intersection-d", "fab-shop"],
+  ["dti", "fab-shop"],
+  ["tennis-court", "cafeteria"],
+  ["cafeteria", "jhs"],
+  ["cafeteria", "dti"],
+  ["fab-shop", "dit-laboratories"],
+  ["det", "tambayan-b"],
+  ["det", "academic-building"],
+  ["tambayan-b", "tambayan-a"],
+  ["tambayan-b", "executive-house"],
+  ["executive-house", "intersection-e"],
+  ["intersection-e", "isl"],
+  ["intersection-e", "dit-laboratories"],
+  ["executive-house", "girls-dormitories"],
+  ["girls-dormitories", "college-annex"],
+  ["girls-dormitories", "pavilion"],
+  ["pavilion", "oval"],
+  ["pavilion", "sdc"],
+  ["pavilion", "college-annex"],
+  ["flagpole", "basketball-court"],
+  ["basketball-court", "sdc"],
+  ["flagpole", "college-department"],
+  ["rotc-office", "flagpole"],
+  ["college-department", "campus-gym"],
+  ["campus-gym", "administration"],
+  ["campus-gym", "badminton-court"],
+  ["administration", "ringia-hotel"],
+  ["ringia-hotel", "palawan-building"],
+  ["palawan-building", "college-annex"],
+  ["isl", "dit-laboratories"],
+  ["isl", "dit"],
+  ["dit-laboratories", "dit"]
+];
 
-const routeMeasurements = {
-  right: {
-    name: "Right path",
-    nodes: [
-      ["gate", 0],
-      ["guidance_right", 0.01],
-      ["basketball", 0.03],
-      ["cabug", 0.06],
-      ["peacepark", 0.07],
-      ["gym", 0.09],
-      ["old_registrar_cashier", 0.14],
-      ["admin", 0.15],
-      ["ringia", 0.18],
-      ["palawan", 0.24],
-      ["sixteenth", 0.29],
-      ["pavilion_right", 0.32],
-      ["tambayan_dorm", 0.33],
-      ["dorm_right", 0.34],
-      ["executive_dorm", 0.36],
-      ["isl", 0.39],
-      ["tambayan_isl", 0.40],
-      ["dit", 0.43],
-      ["front_isl", 0.45],
-      ["fab_shop", 0.47],
-      ["dti", 0.49]
-    ]
-  },
-  left: {
-    name: "Left path",
-    nodes: [
-      ["gate", 0],
-      ["guidance_left", 0.02],
-      ["medical_rooms", 0.03],
-      ["comlab", 0.04],
-      ["avr", 0.05],
-      ["registrar", 0.07],
-      ["det", 0.09],
-      ["tambayan_left_1", 0.10],
-      ["tambayan_left_2", 0.11],
-      ["new_cr", 0.12],
-      ["dorm_left", 0.14],
-      ["pavilion_left", 0.16],
-      ["sixteenth_left", 0.20],
-      ["sdc", 0.26],
-      ["basketball", 0.31]
-    ]
-  },
-  gateFront: {
-    name: "Gate front path",
-    nodes: [
-      ["gate", 0],
-      ["caf", 0.04],
-      ["jhs", 0.05]
-    ]
-  }
+const PREFERRED_ROUTES = {
+  "main-gate>administration": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration"],
+  "main-gate>sdc": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "main-gate>claudio-cabug": ["main-gate", "intersection-b", "claudio-cabug"],
+  "main-gate>medical-rooms": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms"],
+  "main-gate>computer-laboratory": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "main-gate>avr": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "main-gate>det": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "main-gate>tambayan-a": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "tambayan-a"],
+  "main-gate>tambayan-b": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b"],
+  "main-gate>tennis-court": ["main-gate", "intersection-c", "tennis-court"],
+  "main-gate>jhs": ["main-gate", "intersection-c", "tennis-court", "cafeteria", "jhs"],
+  "main-gate>cafeteria": ["main-gate", "intersection-c", "tennis-court", "cafeteria"],
+  "main-gate>college-department": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department"],
+  "main-gate>campus-gym": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "main-gate>dti": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti"],
+  "main-gate>fab-shop": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop"],
+  "main-gate>dit-laboratories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop", "dit-laboratories"],
+  "main-gate>dit": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop", "dit-laboratories", "dit"],
+  "main-gate>isl": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "main-gate>executive-house": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house"],
+  "main-gate>girls-dormitories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories"],
+  "main-gate>college-annex": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "main-gate>pavilion": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "main-gate>oval": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "main-gate>palawan-building": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration", "ringia-hotel", "palawan-building"],
+  "main-gate>ringia-hotel": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration", "ringia-hotel"],
+  "main-gate>badminton-court": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "badminton-court"],
+  "main-gate>rotc-office": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "rotc-office"],
+  "main-gate>academic-building": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+  "main-gate>basketball-court": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "basketball-court"]
 };
 
-const routeGraph = {};
-const measuredDistances = new Map();
-const destinationRoutes = new Map();
+Object.assign(PREFERRED_ROUTES, {
+  "computer-laboratory>college-annex": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "computer-laboratory>isl": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "computer-laboratory>dit": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "computer-laboratory>administration": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "computer-laboratory>campus-gym": ["computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "computer-laboratory>college-department": ["computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "computer-laboratory>pavilion": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "computer-laboratory>oval": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "computer-laboratory>cafeteria": ["computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "computer-laboratory>sdc": ["computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "computer-laboratory>ringia-hotel": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "computer-laboratory>palawan-building": ["computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "computer-laboratory>jhs": ["computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
 
-Object.values(routeMeasurements).forEach(routeInfo => {
-  routeInfo.nodes.forEach(([id, distance], index) => {
-    routeGraph[id] ||= [];
-    if (index > 0) {
-      const [previousId, previousDistance] = routeInfo.nodes[index - 1];
-      routeGraph[previousId] ||= [];
-      routeGraph[id] ||= [];
-      if (!routeGraph[previousId].includes(id)) routeGraph[previousId].push(id);
-      if (!routeGraph[id].includes(previousId)) routeGraph[id].push(previousId);
-      measuredDistances.set(previousId + ">" + id, Math.max(0, distance - previousDistance));
-      measuredDistances.set(id + ">" + previousId, Math.max(0, distance - previousDistance));
-    }
-    if (id !== "gate" && !destinationRoutes.has(id)) {
-      destinationRoutes.set(id, {
-        name: routeInfo.name,
-        distance,
-        nodes: routeInfo.nodes.slice(0, index + 1).map(([nodeId]) => nodeId)
-      });
-    }
-  });
+  "dti>oval": ["dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "dti>campus-gym": ["dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "dti>administration": ["dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "dti>pavilion": ["dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "dti>sdc": ["dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "dti>cafeteria": ["dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "dti>jhs": ["dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "dti>college-department": ["dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "dti>ringia-hotel": ["dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "dti>palawan-building": ["dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+
+  "isl>campus-gym": ["isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "isl>cafeteria": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "isl>jhs": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "isl>sdc": ["isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "isl>administration": ["isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "isl>college-department": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "isl>oval": ["isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "isl>ringia-hotel": ["isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "isl>college-annex": ["isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex"],
+  "isl>palawan-building": ["isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "isl>computer-laboratory": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "isl>pavilion": ["isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion"],
+  "isl>claudio-cabug": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "isl>det": ["isl", "intersection-e", "executive-house", "tambayan-b", "det"],
+  "isl>avr": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr"],
+  "isl>academic-building": ["isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "academic-building"],
+
+  "college-department>isl": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "college-department>cafeteria": ["college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "college-department>jhs": ["college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "college-department>administration": ["college-department", "campus-gym", "administration"],
+  "college-department>college-annex": ["college-department", "campus-gym", "administration", "ringia-hotel", "palawan-building", "college-annex"],
+  "college-department>sdc": ["college-department", "flagpole", "basketball-court", "sdc"],
+  "college-department>pavilion": ["college-department", "flagpole", "basketball-court", "sdc", "pavilion"],
+  "college-department>oval": ["college-department", "flagpole", "basketball-court", "sdc", "pavilion", "oval"],
+  "college-department>dit": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "college-department>ringia-hotel": ["college-department", "campus-gym", "administration", "ringia-hotel"],
+  "college-department>palawan-building": ["college-department", "campus-gym", "administration", "ringia-hotel", "palawan-building"],
+  "college-department>claudio-cabug": ["college-department", "flagpole", "claudio-cabug"],
+  "college-department>computer-laboratory": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "college-department>avr": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "college-department>det": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "college-department>academic-building": ["college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "cafeteria>college-annex": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "cafeteria>campus-gym": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "cafeteria>administration": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration"],
+  "cafeteria>palawan-building": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "cafeteria>isl": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "cafeteria>dit": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "cafeteria>sdc": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "cafeteria>pavilion": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "cafeteria>ringia-hotel": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration", "ringia-hotel"],
+  "cafeteria>oval": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "basketball-court", "sdc", "pavilion", "oval"],
+  "cafeteria>college-department": ["cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department"],
+  "cafeteria>claudio-cabug": ["cafeteria", "tennis-court", "claudio-cabug"],
+  "cafeteria>computer-laboratory": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory"],
+  "cafeteria>avr": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr"],
+  "cafeteria>det": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "cafeteria>academic-building": ["cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "dit>campus-gym": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "dit>cafeteria": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "dit>administration": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "dit>college-department": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "dit>pavilion": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion"],
+  "dit>oval": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "dit>sdc": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "dit>computer-laboratory": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "dit>claudio-cabug": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "dit>palawan-building": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "dit>jhs": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "dit>ringia-hotel": ["dit", "isl", "intersection-e", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "dit>det": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det"],
+  "dit>avr": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "avr"],
+  "dit>academic-building": ["dit", "isl", "intersection-e", "executive-house", "tambayan-b", "det", "academic-building"]
 });
 
+Object.assign(PREFERRED_ROUTES, {
+  "sdc>dit": ["sdc", "pavilion", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "sdc>isl": ["sdc", "pavilion", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "sdc>college-annex": ["sdc", "pavilion", "college-annex"],
+  "sdc>palawan-building": ["sdc", "pavilion", "college-annex", "palawan-building"],
+  "sdc>ringia-hotel": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel"],
+  "sdc>administration": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "sdc>campus-gym": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "sdc>college-department": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department"],
+  "sdc>claudio-cabug": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug"],
+  "sdc>computer-laboratory": ["sdc", "basketball-court", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "sdc>cafeteria": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "sdc>jhs": ["sdc", "pavilion", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "sdc>avr": ["sdc", "basketball-court", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "sdc>det": ["sdc", "basketball-court", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "sdc>academic-building": ["sdc", "basketball-court", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "jhs>campus-gym": ["jhs", "cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "jhs>sdc": ["jhs", "cafeteria", "tennis-court", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "jhs>palawan-building": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "jhs>administration": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "jhs>oval": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "jhs>college-department": ["jhs", "cafeteria", "tennis-court", "claudio-cabug", "flagpole", "college-department"],
+  "jhs>pavilion": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "jhs>computer-laboratory": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory"],
+  "jhs>avr": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr"],
+  "jhs>det": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "jhs>college-annex": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "jhs>ringia-hotel": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "jhs>isl": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "jhs>dit": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "jhs>academic-building": ["jhs", "cafeteria", "tennis-court", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "fab-shop>campus-gym": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "fab-shop>cafeteria": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "fab-shop>sdc": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "fab-shop>administration": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "fab-shop>pavilion": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "fab-shop>oval": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+  "fab-shop>college-department": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "fab-shop>college-annex": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "fab-shop>palawan-building": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "fab-shop>ringia-hotel": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "fab-shop>computer-laboratory": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory"],
+  "fab-shop>isl": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "fab-shop>dit": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "fab-shop>academic-building": ["fab-shop", "dti", "academic-building"],
+  "fab-shop>det": ["fab-shop", "dti", "academic-building", "det"],
+  "fab-shop>jhs": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "fab-shop>executive-house": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house"],
+  "fab-shop>girls-dormitories": ["fab-shop", "dti", "academic-building", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories"],
+  "fab-shop>claudio-cabug": ["fab-shop", "dti", "academic-building", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+
+  "campus-gym>cafeteria": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "campus-gym>jhs": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "campus-gym>computer-laboratory": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "campus-gym>avr": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "campus-gym>det": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "campus-gym>isl": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "campus-gym>dit": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "campus-gym>ringia-hotel": ["campus-gym", "administration", "ringia-hotel"],
+  "campus-gym>palawan-building": ["campus-gym", "administration", "ringia-hotel", "palawan-building"],
+  "campus-gym>college-annex": ["campus-gym", "administration", "ringia-hotel", "palawan-building", "college-annex"],
+  "campus-gym>pavilion": ["campus-gym", "administration", "ringia-hotel", "palawan-building", "college-annex", "pavilion"],
+  "campus-gym>sdc": ["campus-gym", "administration", "ringia-hotel", "palawan-building", "college-annex", "pavilion", "sdc"],
+  "campus-gym>academic-building": ["campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"]
+});
+
+Object.assign(PREFERRED_ROUTES, {
+  "administration>palawan-building": ["administration", "ringia-hotel", "palawan-building"],
+  "administration>college-annex": ["administration", "ringia-hotel", "palawan-building", "college-annex"],
+  "administration>isl": ["administration", "ringia-hotel", "palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "administration>dit": ["administration", "ringia-hotel", "palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "administration>college-department": ["administration", "campus-gym", "college-department"],
+  "administration>claudio-cabug": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug"],
+  "administration>cafeteria": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "administration>jhs": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "administration>computer-laboratory": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "administration>avr": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "administration>det": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "administration>pavilion": ["administration", "ringia-hotel", "palawan-building", "college-annex", "pavilion"],
+  "administration>sdc": ["administration", "ringia-hotel", "palawan-building", "college-annex", "pavilion", "sdc"],
+  "administration>academic-building": ["administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "ringia-hotel>college-annex": ["ringia-hotel", "palawan-building", "college-annex"],
+  "ringia-hotel>isl": ["ringia-hotel", "palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "ringia-hotel>dit": ["ringia-hotel", "palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "ringia-hotel>pavilion": ["ringia-hotel", "palawan-building", "college-annex", "pavilion"],
+  "ringia-hotel>sdc": ["ringia-hotel", "palawan-building", "college-annex", "pavilion", "sdc"],
+  "ringia-hotel>campus-gym": ["ringia-hotel", "administration", "campus-gym"],
+  "ringia-hotel>college-department": ["ringia-hotel", "administration", "campus-gym", "college-department"],
+  "ringia-hotel>claudio-cabug": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug"],
+  "ringia-hotel>cafeteria": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "ringia-hotel>jhs": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "ringia-hotel>computer-laboratory": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory"],
+  "ringia-hotel>avr": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr"],
+  "ringia-hotel>det": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det"],
+  "ringia-hotel>academic-building": ["ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
+
+  "palawan-building>administration": ["palawan-building", "ringia-hotel", "administration"],
+  "palawan-building>campus-gym": ["palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "palawan-building>college-department": ["palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department"],
+  "palawan-building>claudio-cabug": ["palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug"],
+  "palawan-building>cafeteria": ["palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "palawan-building>jhs": ["palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "palawan-building>computer-laboratory": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "palawan-building>avr": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr"],
+  "palawan-building>det": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det"],
+  "palawan-building>pavilion": ["palawan-building", "college-annex", "pavilion"],
+  "palawan-building>sdc": ["palawan-building", "college-annex", "pavilion", "sdc"],
+  "palawan-building>isl": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "palawan-building>dit": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "palawan-building>academic-building": ["palawan-building", "college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "academic-building"],
+
+  "college-annex>ringia-hotel": ["college-annex", "palawan-building", "ringia-hotel"],
+  "college-annex>administration": ["college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "college-annex>campus-gym": ["college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "college-annex>college-department": ["college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department"],
+  "college-annex>claudio-cabug": ["college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug"],
+  "college-annex>cafeteria": ["college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria"],
+  "college-annex>jhs": ["college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym", "college-department", "flagpole", "claudio-cabug", "tennis-court", "cafeteria", "jhs"],
+  "college-annex>computer-laboratory": ["college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "college-annex>avr": ["college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr"],
+  "college-annex>det": ["college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det"],
+  "college-annex>isl": ["college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "college-annex>dit": ["college-annex", "girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "college-annex>sdc": ["college-annex", "pavilion", "sdc"],
+  "college-annex>academic-building": ["college-annex", "girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "academic-building"],
+
+  "girls-dormitories>palawan-building": ["girls-dormitories", "college-annex", "palawan-building"],
+  "girls-dormitories>ringia-hotel": ["girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "girls-dormitories>administration": ["girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "girls-dormitories>campus-gym": ["girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "girls-dormitories>isl": ["girls-dormitories", "executive-house", "intersection-e", "isl"],
+  "girls-dormitories>dit": ["girls-dormitories", "executive-house", "intersection-e", "isl", "dit"],
+  "girls-dormitories>college-department": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "girls-dormitories>claudio-cabug": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "girls-dormitories>computer-laboratory": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "girls-dormitories>avr": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr"],
+  "girls-dormitories>cafeteria": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "girls-dormitories>jhs": ["girls-dormitories", "executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "girls-dormitories>academic-building": ["girls-dormitories", "executive-house", "tambayan-b", "det", "academic-building"],
+
+  "executive-house>college-annex": ["executive-house", "girls-dormitories", "college-annex"],
+  "executive-house>palawan-building": ["executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "executive-house>ringia-hotel": ["executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "executive-house>administration": ["executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "executive-house>campus-gym": ["executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration", "campus-gym"],
+  "executive-house>dit": ["executive-house", "intersection-e", "isl", "dit"],
+  "executive-house>college-department": ["executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "executive-house>claudio-cabug": ["executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "executive-house>computer-laboratory": ["executive-house", "tambayan-b", "det", "avr", "computer-laboratory"],
+  "executive-house>avr": ["executive-house", "tambayan-b", "det", "avr"],
+  "executive-house>det": ["executive-house", "tambayan-b", "det"],
+  "executive-house>cafeteria": ["executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "executive-house>jhs": ["executive-house", "tambayan-b", "det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "executive-house>pavilion": ["executive-house", "girls-dormitories", "pavilion"],
+  "executive-house>sdc": ["executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "executive-house>academic-building": ["executive-house", "tambayan-b", "det", "academic-building"],
+  "executive-house>oval": ["executive-house", "girls-dormitories", "pavilion", "oval"]
+});
+
+Object.assign(PREFERRED_ROUTES, {
+  "det>campus-gym": ["det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "det>college-department": ["det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "det>claudio-cabug": ["det", "avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "det>computer-laboratory": ["det", "avr", "computer-laboratory"],
+  "det>cafeteria": ["det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "det>jhs": ["det", "avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "det>isl": ["det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "det>dit": ["det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "det>college-annex": ["det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "det>palawan-building": ["det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "det>ringia-hotel": ["det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "det>administration": ["det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "det>pavilion": ["det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "det>sdc": ["det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "det>oval": ["det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+
+  "avr>claudio-cabug": ["avr", "computer-laboratory", "medical-rooms", "claudio-cabug"],
+  "avr>college-department": ["avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "avr>campus-gym": ["avr", "computer-laboratory", "medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "avr>cafeteria": ["avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria"],
+  "avr>jhs": ["avr", "computer-laboratory", "medical-rooms", "tennis-court", "cafeteria", "jhs"],
+  "avr>isl": ["avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "avr>dit": ["avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "avr>executive-house": ["avr", "det", "tambayan-b", "executive-house"],
+  "avr>girls-dormitories": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories"],
+  "avr>college-annex": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "avr>pavilion": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "avr>sdc": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "avr>palawan-building": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "avr>ringia-hotel": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "avr>administration": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "avr>oval": ["avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
+
+  "medical-rooms>avr": ["medical-rooms", "computer-laboratory", "avr"],
+  "medical-rooms>det": ["medical-rooms", "computer-laboratory", "avr", "det"],
+  "medical-rooms>academic-building": ["medical-rooms", "computer-laboratory", "avr", "academic-building"],
+  "medical-rooms>executive-house": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house"],
+  "medical-rooms>girls-dormitories": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories"],
+  "medical-rooms>college-annex": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
+  "medical-rooms>palawan-building": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building"],
+  "medical-rooms>ringia-hotel": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel"],
+  "medical-rooms>administration": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex", "palawan-building", "ringia-hotel", "administration"],
+  "medical-rooms>campus-gym": ["medical-rooms", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
+  "medical-rooms>college-department": ["medical-rooms", "claudio-cabug", "flagpole", "college-department"],
+  "medical-rooms>claudio-cabug": ["medical-rooms", "claudio-cabug"],
+  "medical-rooms>isl": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "medical-rooms>dit": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl", "dit"],
+  "medical-rooms>pavilion": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
+  "medical-rooms>sdc": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "sdc"],
+  "medical-rooms>oval": ["medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"]
+});
+
+const camera = document.getElementById("camera");
+const fallback = document.getElementById("fallback");
 const startSelect = document.getElementById("startSelect");
 const destinationSelect = document.getElementById("destinationSelect");
-const stepScan = document.getElementById("stepScan");
-const stepDestination = document.getElementById("stepDestination");
-const stepGuide = document.getElementById("stepGuide");
-const scanFrame = document.getElementById("scanFrame");
-const arrowLayer = document.getElementById("arrowLayer");
+const startBtn = document.getElementById("startBtn");
+const useGpsBtn = document.getElementById("useGpsBtn");
+const changeRouteBtn = document.getElementById("changeRouteBtn");
+const backBtn = document.getElementById("backBtn");
 const arrow = document.getElementById("arrow");
-const modeText = document.getElementById("modeText");
-const turnText = document.getElementById("turnText");
 const distanceText = document.getElementById("distanceText");
-const gpsText = document.getElementById("gpsText");
-const topTurnText = document.getElementById("topTurnText");
-const topDistanceText = document.getElementById("topDistanceText");
-const topNextText = document.getElementById("topNextText");
-const guideTitle = document.getElementById("guideTitle");
-const guideHint = document.getElementById("guideHint");
-const notice = document.getElementById("notice");
-let currentPlace = places[0];
-let destination = places[1];
-let route = [];
-let routeIndex = 0;
-let heading = 0;
-let currentGps = null;
+const etaText = document.getElementById("etaText");
+const trendText = document.getElementById("trendText");
+const accuracyText = document.getElementById("accuracyText");
+const bearingText = document.getElementById("bearingText");
+const routeText = document.getElementById("routeText");
+const instructionText = document.getElementById("instructionText");
+const routeMap = document.getElementById("routeMap");
+const statusText = document.getElementById("statusText");
+const calibrationToast = document.getElementById("calibrationToast");
+
+let currentPosition = null;
+let lastAcceptedGps = null;
+let destination = null;
+let activeRoute = [];
+let headingDeg = 0;
+let smoothedRelativeBearing = 0;
+let lastDistance = null;
 let watchId = null;
-let markerDetector = null;
-let markerScanTimer = null;
-let cameraStream = null;
-let booted = false;
+let gpsPreferred = false;
+let selectedStartId = "main-gate";
+let lastRerouteAt = 0;
+let lastMovementAt = 0;
+let hasShownCompassToast = false;
+let cameraStartPromise = null;
 
-function loadPlaces() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (Array.isArray(saved) && saved.length) {
-      return mergeCampusPlaces(saved
-        .filter(place => place.id && place.name && Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)))
-        .map(place => ({
-          id: place.id,
-          name: place.name,
-          lat: Number(place.lat),
-          lng: Number(place.lng)
-        })));
-    }
-  } catch (error) {}
-  return defaultPlaces;
+function populateSelects() {
+  const options = PLACES
+    .filter((place) => place.selectable !== false)
+    .map((place) => `<option value="${place.id}">${place.name}</option>`)
+    .join("");
+  startSelect.innerHTML = options;
+  destinationSelect.innerHTML = options;
+  startSelect.value = "main-gate";
+  destinationSelect.value = "administration";
 }
 
-function mergeCampusPlaces(sourcePlaces) {
-  const merged = new Map(defaultPlaces.map(place => [place.id, place]));
-  sourcePlaces.forEach(place => {
-    if (place.id === "gate" || !merged.has(place.id)) {
-      merged.set(place.id, place);
-      return;
-    }
-    merged.set(place.id, { ...merged.get(place.id), ...place });
-  });
-  return Array.from(merged.values());
+function placeById(id) {
+  return PLACES.find((place) => place.id === id) || PLACES[0];
 }
 
-async function loadPlacesFromBackend() {
-  try {
-    const response = await fetch(API_BUILDINGS);
-    const data = await response.json();
-    if (!response.ok || data.ok === false || !Array.isArray(data.buildings)) {
-      throw new Error(data.message || "Database unavailable.");
-    }
-    places = mergeCampusPlaces(data.buildings
-      .filter(place => place.id && place.name && Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)))
-      .map(place => ({
-        id: place.id,
-        name: place.name,
-        lat: Number(place.lat),
-        lng: Number(place.lng)
-      })));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
-    modeText.textContent = "ar_campus data loaded with campus paths";
-  } catch (error) {
-    places = loadPlaces();
-    modeText.textContent = "Local navigation data";
-  }
-  currentPlace = findPlace("gate") || places[0] || defaultPlaces[0];
-  destination = findPlace("guidance_right") || places[1] || currentPlace;
+function toRad(value) {
+  return value * Math.PI / 180;
 }
 
-function setNotice(message) {
-  notice.textContent = message;
-  notice.classList.toggle("active", Boolean(message));
+function toDeg(value) {
+  return value * 180 / Math.PI;
 }
 
-function fillSelects() {
-  startSelect.innerHTML = "";
-  destinationSelect.innerHTML = "";
-  places.forEach(place => {
-    startSelect.add(new Option(place.name, place.id));
-    destinationSelect.add(new Option(place.name, place.id));
-  });
-  destinationSelect.value = findPlace("guidance_right") ? "guidance_right" : places[1]?.id || places[0]?.id;
+function normalizeDeg(value) {
+  return (value % 360 + 360) % 360;
 }
 
-async function startCamera() {
-  if (!window.isSecureContext) {
-    setNotice("Camera, GPS, and compass need HTTPS on a phone. Use a hosted HTTPS URL, or test on this computer with localhost.");
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-    cameraStream = stream;
-    document.getElementById("camera").srcObject = stream;
-  } catch (error) {
-    document.getElementById("camera").classList.add("hidden");
-    document.getElementById("fallback").classList.remove("hidden");
-    modeText.textContent = "Camera unavailable";
-  }
+function distanceMeters(from, to) {
+  const radius = 6371000;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function showStep(step) {
-  [stepScan, stepDestination, stepGuide].forEach(el => el.classList.remove("active"));
-  step.classList.add("active");
-}
-
-function findPlace(id) {
-  return places.find(place => place.id === id);
-}
-
-function routeBetween(startId, endId) {
-  if (!routeGraph[startId] || !routeGraph[endId]) {
-    return [findPlace(startId), findPlace(endId)].filter(Boolean);
-  }
-
-  const distances = new Map([[startId, 0]]);
-  const previous = new Map();
-  const unsettled = new Set(Object.keys(routeGraph));
-
-  while (unsettled.size) {
-    let currentId = null;
-    let bestDistance = Infinity;
-    unsettled.forEach(id => {
-      const candidateDistance = distances.get(id) ?? Infinity;
-      if (candidateDistance < bestDistance) {
-        bestDistance = candidateDistance;
-        currentId = id;
-      }
-    });
-    if (currentId === null || currentId === endId) break;
-
-    unsettled.delete(currentId);
-    (routeGraph[currentId] || []).forEach(nextId => {
-      if (!unsettled.has(nextId)) return;
-      const from = findPlace(currentId);
-      const to = findPlace(nextId);
-      if (!from || !to) return;
-      const measuredDistance = measuredDistances.get(currentId + ">" + nextId);
-      const edgeDistance = Number.isFinite(measuredDistance) ? measuredDistance : meters(from, to);
-      const totalDistance = bestDistance + edgeDistance;
-      if (totalDistance < (distances.get(nextId) ?? Infinity)) {
-        distances.set(nextId, totalDistance);
-        previous.set(nextId, currentId);
-      }
-    });
-  }
-
-  if (!distances.has(endId)) {
-    return [findPlace(startId), findPlace(endId)].filter(Boolean);
-  }
-
-  const path = [];
-  for (let id = endId; id; id = previous.get(id)) {
-    path.unshift(id);
-    if (id === startId) break;
-  }
-  return path.map(findPlace).filter(Boolean);
-}
-
-function routeDistance(routePlaces) {
-  return routePlaces.slice(1).reduce((total, place, index) => {
-    const previousPlace = routePlaces[index];
-    const measuredDistance = measuredStepDistance(previousPlace, place);
-    return total + (Number.isFinite(measuredDistance) ? measuredDistance : meters(previousPlace, place));
-  }, 0);
-}
-
-function routeName(routePlaces) {
-  const routeIds = routePlaces.map(place => place.id);
-  const match = Object.values(routeMeasurements).find(routeInfo =>
-    routeIds.every(id => routeInfo.nodes.some(([nodeId]) => nodeId === id))
-  );
-  return match?.name || "Fastest route";
-}
-
-function routeInfoForDestination(placeId) {
-  return destinationRoutes.get(placeId);
-}
-
-function formatMeasuredDistance(value) {
-  if (!Number.isFinite(value)) return "";
-  return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "") + " m";
-}
-
-function measuredStepDistance(from, to) {
-  return measuredDistances.get(from.id + ">" + to.id);
-}
-
-function updateTopGuide(directionLabel, distanceLabel, nextLabel) {
-  topTurnText.textContent = directionLabel;
-  topDistanceText.textContent = distanceLabel;
-  topNextText.textContent = nextLabel;
-}
-
-function bearing(from, to) {
-  const toRad = deg => deg * Math.PI / 180;
-  const toDeg = rad => rad * 180 / Math.PI;
+function bearingDegrees(from, to) {
   const lat1 = toRad(from.lat);
   const lat2 = toRad(to.lat);
   const dLng = toRad(to.lng - from.lng);
   const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  const x = Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return normalizeDeg(toDeg(Math.atan2(y, x)));
 }
 
-function meters(a, b) {
-  const earth = 6371000;
-  const toRad = deg => deg * Math.PI / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return Math.round(earth * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+function buildWalkingGraph() {
+  const graph = new Map(PLACES.map((place) => [place.id, []]));
+
+  ROUTE_LINKS.forEach(([fromId, toId]) => {
+    const from = placeById(fromId);
+    const to = placeById(toId);
+    const distance = distanceMeters(from, to);
+    graph.get(fromId).push({ id: toId, distance });
+    graph.get(toId).push({ id: fromId, distance });
+  });
+
+  return graph;
 }
 
-function nearestPlaceTo(point) {
-  return places
-    .map(place => ({ place, distance: meters(point, place) }))
-    .sort((a, b) => a.distance - b.distance)[0];
+const WALKING_GRAPH = buildWalkingGraph();
+
+function routeFromIds(ids) {
+  return ids.map(placeById);
 }
 
-function normalize(angle) {
-  return ((angle + 540) % 360) - 180;
-}
+function shortestPath(startId, destinationId) {
+  const preferredKey = `${startId}>${destinationId}`;
+  const reversePreferredKey = `${destinationId}>${startId}`;
 
-function updateArrow() {
-  const next = route[Math.min(routeIndex + 1, route.length - 1)];
-  const origin = currentGps || currentPlace;
-  if (next && next.id === currentPlace.id && routeIndex < route.length - 1) {
-    routeIndex += 1;
-    updateArrow();
-    return;
-  }
-  if (!next || next.id === currentPlace.id) {
-    arrow.className = "arrow straight";
-    turnText.textContent = "Arrived";
-    distanceText.textContent = "0 m";
-    updateTopGuide("Arrived", "0 m", destination?.name || "Destination");
-    guideHint.textContent = "You are at the destination.";
-    return;
+  if (PREFERRED_ROUTES[preferredKey]) {
+    return routeFromIds(PREFERRED_ROUTES[preferredKey]);
   }
 
-  const measuredDistance = currentPlace ? measuredStepDistance(currentPlace, next) : null;
-  const distanceToNext = Number.isFinite(measuredDistance) ? measuredDistance : meters(origin, next);
-  if (!Number.isFinite(measuredDistance) && currentGps && distanceToNext < 12 && routeIndex < route.length - 1) {
-    routeIndex += 1;
-    currentPlace = route[routeIndex];
-    updateArrow();
-    return;
+  if (PREFERRED_ROUTES[reversePreferredKey]) {
+    return routeFromIds([...PREFERRED_ROUTES[reversePreferredKey]].reverse());
   }
 
-  const targetBearing = bearing(origin, next);
-  const diff = normalize(targetBearing - heading);
-  let direction = "straight";
-  if (diff > 35) direction = "right";
-  if (diff < -35) direction = "left";
-  arrow.className = "arrow " + direction;
-  const directionLabel = direction === "straight" ? "Straight" : direction === "right" ? "Right" : "Left";
-  const distanceLabel = Number.isFinite(measuredDistance) ? formatMeasuredDistance(measuredDistance) : distanceToNext + " m";
-  turnText.textContent = directionLabel;
-  distanceText.textContent = distanceLabel;
-  updateTopGuide(directionLabel, distanceLabel, next.name);
-  guideHint.textContent = "Next corner: " + next.name;
+  const distances = new Map(PLACES.map((place) => [place.id, Infinity]));
+  const previous = new Map();
+  const unvisited = new Set(PLACES.map((place) => place.id));
+  distances.set(startId, 0);
+
+  while (unvisited.size) {
+    let currentId = null;
+    let bestDistance = Infinity;
+
+    unvisited.forEach((id) => {
+      const distance = distances.get(id);
+      if (distance < bestDistance) {
+        currentId = id;
+        bestDistance = distance;
+      }
+    });
+
+    if (currentId === null || currentId === destinationId) break;
+    unvisited.delete(currentId);
+
+    WALKING_GRAPH.get(currentId).forEach((edge) => {
+      if (!unvisited.has(edge.id)) return;
+      const total = bestDistance + edge.distance;
+      if (total < distances.get(edge.id)) {
+        distances.set(edge.id, total);
+        previous.set(edge.id, currentId);
+      }
+    });
+  }
+
+  const pathIds = [];
+  for (let id = destinationId; id; id = previous.get(id)) {
+    pathIds.unshift(id);
+    if (id === startId) break;
+  }
+
+  if (pathIds[0] !== startId) {
+    return [placeById(startId), placeById(destinationId)];
+  }
+
+  return pathIds.map(placeById);
 }
 
-function startRealtimeTracking() {
-  if (!navigator.geolocation || watchId !== null) return;
-  watchId = navigator.geolocation.watchPosition(position => {
-    currentGps = {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude
-    };
-    const nearest = nearestPlaceTo(currentGps);
-    gpsText.textContent = Math.round(position.coords.accuracy) + " m";
-    if (nearest && nearest.distance < 25 && (!route.length || route.some(place => place.id === nearest.place.id))) {
-      currentPlace = nearest.place;
-      startSelect.value = currentPlace.id;
+function nearestPlace(point) {
+  return PLACES
+    .map((place) => ({ place, distance: distanceMeters(point, place) }))
+    .sort((a, b) => a.distance - b.distance)[0]?.place || PLACES[0];
+}
+
+function routeDistanceFrom(origin, route) {
+  const nextWaypoint = getNextWaypoint(origin, route);
+  if (!nextWaypoint) return 0;
+
+  const waypointIndex = route.findIndex((place) => place.id === nextWaypoint.id);
+  let total = distanceMeters(origin, nextWaypoint);
+
+  for (let index = waypointIndex; index < route.length - 1; index++) {
+    total += distanceMeters(route[index], route[index + 1]);
+  }
+
+  return total;
+}
+
+function edgeWalkingSpeed(from, to) {
+  const ids = [from.id, to.id];
+  if (ids.includes("pavilion") || ids.includes("sdc")) return 1.05;
+  if (ids.includes("cafeteria") || ids.includes("jhs")) return 1.12;
+  if (ids.includes("intersection-d") || ids.includes("intersection-e")) return 1.15;
+  return WALKING_SPEED_MPS;
+}
+
+function routeEtaSecondsFrom(origin, route) {
+  const nextWaypoint = getNextWaypoint(origin, route);
+  if (!nextWaypoint) return 0;
+
+  const waypointIndex = route.findIndex((place) => place.id === nextWaypoint.id);
+  let seconds = distanceMeters(origin, nextWaypoint) / edgeWalkingSpeed(origin, nextWaypoint);
+
+  for (let index = waypointIndex; index < route.length - 1; index++) {
+    seconds += distanceMeters(route[index], route[index + 1]) / edgeWalkingSpeed(route[index], route[index + 1]);
+  }
+
+  return seconds;
+}
+
+function getNextWaypoint(origin, route) {
+  if (!route.length) return destination;
+  if (route.length === 1) return route[0];
+
+  const segmentIndex = closestRouteSegmentIndex(origin, route);
+  const waypoint = route[Math.min(segmentIndex + 1, route.length - 1)];
+
+  if (distanceMeters(origin, waypoint) <= arrivalRadiusFor(waypoint) && segmentIndex + 2 < route.length) {
+    return route[segmentIndex + 2];
+  }
+
+  return waypoint || route[route.length - 1];
+}
+
+function arrivalRadiusFor(place) {
+  if (!place) return ARRIVAL_RADIUS_M;
+  return place.selectable === false ? 6 : 10;
+}
+
+function distanceToSegmentMeters(point, start, end) {
+  const metersPerLat = 111320;
+  const metersPerLng = 111320 * Math.cos(toRad(point.lat));
+  const px = (point.lng - start.lng) * metersPerLng;
+  const py = (point.lat - start.lat) * metersPerLat;
+  const ex = (end.lng - start.lng) * metersPerLng;
+  const ey = (end.lat - start.lat) * metersPerLat;
+  const lengthSq = ex * ex + ey * ey;
+  if (!lengthSq) return distanceMeters(point, start);
+  const t = Math.max(0, Math.min(1, (px * ex + py * ey) / lengthSq));
+  const closest = {
+    lat: start.lat + (end.lat - start.lat) * t,
+    lng: start.lng + (end.lng - start.lng) * t
+  };
+  return distanceMeters(point, closest);
+}
+
+function closestRouteSegmentIndex(point, route) {
+  if (route.length < 2) return 0;
+
+  let bestIndex = 0;
+  let bestDistance = Infinity;
+  for (let index = 0; index < route.length - 1; index++) {
+    const distance = distanceToSegmentMeters(point, route[index], route[index + 1]);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
     }
-    updateArrow();
-  }, () => {
-    gpsText.textContent = "Off";
-  }, {
-    enableHighAccuracy: true,
-    maximumAge: 1000,
-    timeout: 12000
+  }
+
+  return bestIndex;
+}
+
+function distanceToRouteMeters(point, route) {
+  if (route.length < 2) return Infinity;
+  let best = Infinity;
+  for (let index = 0; index < route.length - 1; index++) {
+    best = Math.min(best, distanceToSegmentMeters(point, route[index], route[index + 1]));
+  }
+  return best;
+}
+
+function describeRoute(route) {
+  if (!route.length) return "Fastest path unavailable.";
+  return "Fastest path: " + route.map((place) => place.name).join(" -> ");
+}
+
+function recalculateRoute() {
+  const startPlace = gpsPreferred && currentPosition
+    ? nearestPlace(currentPosition)
+    : placeById(selectedStartId);
+  destination = placeById(destinationSelect.value);
+  activeRoute = shortestPath(startPlace.id, destination.id);
+  routeText.textContent = describeRoute(activeRoute);
+  renderRouteMap(activeRoute, currentPosition || startPlace);
+}
+
+function formatDistance(meters) {
+  if (!Number.isFinite(meters)) return "-- m";
+  if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+  return `${Math.max(0, Math.round(meters))} m`;
+}
+
+function formatEta(meters) {
+  if (!Number.isFinite(meters)) return "--";
+  if (meters < 60) return "<1 min";
+  return `${Math.max(1, Math.round(meters / 60))} min`;
+}
+
+function setStatus(message, tone = "") {
+  statusText.textContent = message;
+  statusText.className = `status ${tone}`.trim();
+}
+
+function showToast(message, duration = 6500) {
+  calibrationToast.textContent = message;
+  calibrationToast.classList.add("active");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => calibrationToast.classList.remove("active"), duration);
+}
+
+function warnIfInsecureContext() {
+  const localHost = ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (!window.isSecureContext && !localHost) {
+    showToast("HTTPS is required for reliable camera, GPS, and compass on phones.", 9000);
+    setStatus("Use HTTPS on the phone. Camera, GPS, and compass may fail on HTTP.", "warn");
+  }
+}
+
+function renderRouteMap(route, origin) {
+  if (!route.length) {
+    routeMap.innerHTML = "";
+    return;
+  }
+
+  const points = origin ? [origin, ...route] : route;
+  const lats = points.map((point) => point.lat);
+  const lngs = points.map((point) => point.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const pad = 14;
+  const width = 320;
+  const height = 118;
+  const latSpan = maxLat - minLat || 0.0001;
+  const lngSpan = maxLng - minLng || 0.0001;
+
+  const project = (point) => ({
+    x: pad + ((point.lng - minLng) / lngSpan) * (width - pad * 2),
+    y: height - pad - ((point.lat - minLat) / latSpan) * (height - pad * 2)
+  });
+
+  const routePoints = route.map(project);
+  const line = routePoints.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  const current = origin ? project(origin) : routePoints[0];
+  const nodes = routePoints.map((point, index) =>
+    `<circle class="route-node" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${index === route.length - 1 ? 5 : 4}"></circle>`
+  ).join("");
+
+  routeMap.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Route line">
+      <polyline class="route-line" points="${line}"></polyline>
+      ${nodes}
+      <circle class="route-current" cx="${current.x.toFixed(1)}" cy="${current.y.toFixed(1)}" r="5"></circle>
+      <text x="10" y="16">${route[0].name}</text>
+      <text x="10" y="${height - 8}">${route[route.length - 1].name}</text>
+    </svg>`;
+}
+
+function angleDelta(from, to) {
+  return ((to - from + 540) % 360) - 180;
+}
+
+function smoothBearing(targetBearing) {
+  const delta = angleDelta(smoothedRelativeBearing, targetBearing);
+  smoothedRelativeBearing = normalizeDeg(smoothedRelativeBearing + delta * 0.22);
+  return smoothedRelativeBearing;
+}
+
+function routeProgressIndex(origin, route) {
+  const nextWaypoint = getNextWaypoint(origin, route);
+  return Math.max(0, route.findIndex((place) => place.id === nextWaypoint.id));
+}
+
+function turnInstruction(origin, route, relativeBearing) {
+  const nextWaypoint = getNextWaypoint(origin, route);
+  const index = routeProgressIndex(origin, route);
+  const currentTurn = Math.abs(angleDelta(0, relativeBearing));
+
+  const intersectionInstructions = {
+    "intersection-a": "Go straight at Intersection A.",
+    "intersection-b": "Turn right at Intersection B.",
+    "intersection-c": "Turn left at Intersection C.",
+    "intersection-d": "Turn left at Intersection D.",
+    "intersection-e": "Turn left near Intersection E."
+  };
+
+  if (intersectionInstructions[nextWaypoint.id]) {
+    return intersectionInstructions[nextWaypoint.id];
+  }
+
+  if (distanceMeters(origin, nextWaypoint) <= arrivalRadiusFor(nextWaypoint)) {
+    const after = route[index + 1];
+    if (after) return `Continue toward ${after.name}.`;
+  }
+
+  if (index > 0 && index < route.length - 1) {
+    const previous = route[index - 1];
+    const following = route[index + 1];
+    const inBearing = bearingDegrees(previous, nextWaypoint);
+    const outBearing = bearingDegrees(nextWaypoint, following);
+    const turn = angleDelta(inBearing, outBearing);
+    const nearTurn = distanceMeters(origin, nextWaypoint) <= Math.max(18, arrivalRadiusFor(nextWaypoint) + 8);
+
+    if (nearTurn && Math.abs(turn) > 35) {
+      const label = turn > 0 ? "Turn right" : "Turn left";
+      return `${label} at ${nextWaypoint.name}.`;
+    }
+  }
+
+  if (currentTurn <= 22) return `Go straight toward ${nextWaypoint.name}.`;
+  if (angleDelta(0, relativeBearing) > 0) return `Turn right toward ${nextWaypoint.name}.`;
+  return `Turn left toward ${nextWaypoint.name}.`;
+}
+
+function landmarkInstruction(route, nextWaypoint) {
+  const names = route.map((place) => place.name);
+  if (names.includes("Basketball Court")) return "Pass beside the Basketball Court.";
+  if (names.includes("Flagpole")) return "Use the Flagpole as your landmark.";
+  if (names.includes("Cafeteria")) return "Walk toward the Cafeteria side.";
+  if (nextWaypoint.id === "intersection-d") return "Prepare to turn left at Intersection D.";
+  if (nextWaypoint.id === "intersection-e") return "Prepare to turn left near ISL.";
+  return "";
+}
+
+async function startCamera() {
+  if (camera.srcObject && camera.videoWidth > 0) {
+    document.body.classList.add("camera-ready");
+    fallback.classList.add("hidden");
+    return;
+  }
+
+  if (cameraStartPromise) {
+    return cameraStartPromise;
+  }
+
+  cameraStartPromise = openCameraStream().finally(() => {
+    cameraStartPromise = null;
+  });
+  return cameraStartPromise;
+}
+
+async function openCameraStream() {
+  document.body.classList.remove("camera-ready");
+  fallback.classList.remove("hidden");
+
+  const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
+  if (!window.isSecureContext && !isLocalhost) {
+    setStatus("Camera needs HTTPS or localhost.", "warn");
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setStatus("Camera is not available in this browser.", "warn");
+    return;
+  }
+
+  try {
+    if (camera.srcObject) {
+      camera.srcObject.getTracks().forEach((track) => track.stop());
+    }
+
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 960, max: 1280 },
+          height: { ideal: 540, max: 720 },
+          frameRate: { ideal: 24, max: 30 }
+        },
+        audio: false
+      });
+    } catch (error) {
+      await new Promise((resolve) => window.setTimeout(resolve, CAMERA_RETRY_DELAY_MS));
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+
+    camera.muted = true;
+    camera.playsInline = true;
+    camera.setAttribute("playsinline", "");
+    camera.setAttribute("autoplay", "");
+    camera.srcObject = stream;
+    await waitForVideoMetadata();
+    await camera.play();
+
+    document.body.classList.add("camera-ready");
+    fallback.classList.add("hidden");
+    setStatus("Camera is active.", "ok");
+  } catch (error) {
+    document.body.classList.remove("camera-ready");
+    fallback.classList.remove("hidden");
+    const name = error && error.name ? error.name : "";
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+      setStatus("Camera permission was denied. Allow camera in the browser address bar.", "warn");
+    } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+      setStatus("No camera was found on this device.", "warn");
+    } else if (name === "NotReadableError" || name === "TrackStartError") {
+      setStatus("Another app may be using the camera.", "warn");
+    } else {
+      setStatus("Camera is blocked or still loading.", "warn");
+    }
+  }
+}
+
+function waitForVideoMetadata() {
+  if (camera.videoWidth > 0 && camera.videoHeight > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    camera.addEventListener("loadedmetadata", resolve, { once: true });
+    window.setTimeout(resolve, 3000);
   });
 }
 
-async function requestCompass() {
+async function requestCompassPermission() {
   if (typeof DeviceOrientationEvent !== "undefined" &&
       typeof DeviceOrientationEvent.requestPermission === "function") {
     try {
       const result = await DeviceOrientationEvent.requestPermission();
       if (result !== "granted") {
-        setNotice("Compass permission was not granted. The arrow can still update with GPS, but turns may be less accurate.");
+        setStatus("Compass permission was not granted. The arrow may not rotate with the phone.", "warn");
       }
     } catch (error) {
-      setNotice("Compass permission could not be requested in this browser.");
+      setStatus("Compass permission is unavailable in this browser.", "warn");
     }
   }
 }
 
-async function startGuide() {
-  await requestCompass();
-  destination = findPlace(destinationSelect.value);
-  route = routeBetween(currentPlace.id, destination.id);
-  routeIndex = 0;
-  guideTitle.textContent = currentPlace.name + " to " + destination.name;
-  const totalDistance = routeDistance(route);
-  guideHint.textContent = routeName(route) + " - fastest route, total " + formatMeasuredDistance(totalDistance);
-  document.body.classList.add("guiding");
-  scanFrame.style.display = "block";
-  arrowLayer.classList.add("active");
-  modeText.textContent = "AR navigation active";
-  showStep(stepGuide);
-  startRealtimeTracking();
-  updateArrow();
-}
-
-function markerIdFromPayload(rawValue) {
-  const value = String(rawValue || "").trim().toLowerCase();
-  const markerPrefix = "msu-mcest:";
-  if (value.includes(markerPrefix)) {
-    return value.slice(value.lastIndexOf(markerPrefix) + markerPrefix.length).trim();
+function handleOrientation(event) {
+  if (!hasShownCompassToast) {
+    hasShownCompassToast = true;
+    showToast("Move your phone in a figure-8 motion to calibrate compass.");
   }
-  return value.replace(/^.*[?#/]marker=/, "").replace(/[^a-z0-9_-]/g, "");
+
+  if (typeof event.webkitCompassHeading === "number") {
+    headingDeg = normalizeDeg(event.webkitCompassHeading);
+  } else if (typeof event.alpha === "number") {
+    headingDeg = normalizeDeg(360 - event.alpha);
+  }
+  updateGuide();
 }
 
-function applyScannedMarker(rawValue) {
-  const markerId = markerIdFromPayload(rawValue);
-  const matched = findPlace(markerId);
-  if (!matched) return false;
+function acceptGpsReading(position) {
+  const accuracy = position.coords.accuracy || Infinity;
+  const candidate = {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    accuracy,
+    timestamp: position.timestamp || Date.now()
+  };
 
-  clearInterval(markerScanTimer);
-  currentPlace = matched;
-  currentGps = null;
-  startSelect.value = matched.id;
-  modeText.textContent = "Scanned: " + matched.name;
-  showStep(stepDestination);
+  if (accuracy > MAX_USABLE_ACCURACY_M) {
+    accuracyText.textContent = `GPS signal weak (${Math.round(accuracy)} m)`;
+    setStatus("GPS signal weak. Move to an open area for better navigation.", "warn");
+    return false;
+  }
+
+  if (lastAcceptedGps) {
+    const elapsedSeconds = Math.max(1, (candidate.timestamp - lastAcceptedGps.timestamp) / 1000);
+    const jumpSpeed = distanceMeters(lastAcceptedGps, candidate) / elapsedSeconds;
+    if (jumpSpeed > MAX_WALKING_JUMP_MPS && accuracy > GOOD_ACCURACY_M) {
+      accuracyText.textContent = `GPS jump ignored (${Math.round(accuracy)} m)`;
+      return false;
+    }
+
+    if (distanceMeters(lastAcceptedGps, candidate) > 1.5) {
+      lastMovementAt = candidate.timestamp;
+    }
+  } else {
+    lastMovementAt = candidate.timestamp;
+  }
+
+  lastAcceptedGps = candidate;
+  currentPosition = {
+    lat: currentPosition
+      ? currentPosition.lat * 0.68 + candidate.lat * 0.32
+      : candidate.lat,
+    lng: currentPosition
+      ? currentPosition.lng * 0.68 + candidate.lng * 0.32
+      : candidate.lng,
+    accuracy,
+    timestamp: candidate.timestamp
+  };
+
   return true;
 }
 
-function scanFrameWithJsQr(canvas, ctx) {
-  if (typeof jsQR !== "function") return false;
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const result = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: "attemptBoth"
-  });
-  return result ? applyScannedMarker(result.data) : false;
-}
+function maybeRerouteFromGps() {
+  if (!gpsPreferred || !currentPosition || !destination || activeRoute.length < 2) return;
 
-async function startMarkerScan() {
-  if ("BarcodeDetector" in window && !markerDetector) {
-    try {
-      markerDetector = new BarcodeDetector({ formats: ["qr_code"] });
-    } catch (error) {
-      markerDetector = null;
+  const offRouteDistance = distanceToRouteMeters(currentPosition, activeRoute);
+  const now = Date.now();
+  if (offRouteDistance > OFF_ROUTE_DISTANCE_M) {
+    trendText.textContent = "Off walking path";
+    trendText.style.color = "var(--warn)";
+    setStatus("You are off the walking path. Recalculating route.", "warn");
+
+    if (now - lastRerouteAt > REROUTE_COOLDOWN_MS) {
+      lastRerouteAt = now;
+      recalculateRoute();
     }
   }
-  const video = document.getElementById("camera");
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!cameraStream) {
-    await startCamera();
-  }
-  if (!markerDetector && typeof jsQR !== "function") {
-    modeText.textContent = "QR scanner is unavailable in this browser.";
-    setNotice("Use Chrome or Edge, or keep the local jsQR file in vendor/jsqr/jsQR.js.");
+}
+
+function startGpsWatch() {
+  if (!navigator.geolocation) {
+    accuracyText.textContent = "GPS unavailable";
+    setStatus("This browser does not support GPS location.", "warn");
     return;
   }
-  modeText.textContent = "Scanning QR marker...";
-  setNotice("");
-  clearInterval(markerScanTimer);
-  markerScanTimer = setInterval(async () => {
-    if (!video.videoWidth || !video.videoHeight) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    try {
-      if (markerDetector) {
-        const codes = await markerDetector.detect(canvas);
-        if (codes[0]?.rawValue && applyScannedMarker(codes[0].rawValue)) {
-          return;
-        }
-      }
-      scanFrameWithJsQr(canvas, ctx);
-    } catch (error) {
-      if (!scanFrameWithJsQr(canvas, ctx)) {
-        modeText.textContent = "Keep the QR marker inside the scan box.";
-      }
+
+  if (watchId !== null) return;
+
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      gpsPreferred = true;
+      if (!acceptGpsReading(position)) return;
+      accuracyText.textContent = position.coords.accuracy
+        ? `Accuracy ${Math.round(position.coords.accuracy)} m`
+        : "GPS active";
+      maybeRerouteFromGps();
+      updateGuide();
+    },
+    () => {
+      accuracyText.textContent = "GPS blocked";
+      setStatus("Allow location permission so distance changes while you walk.", "warn");
+    },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 }
+  );
+}
+
+function getOrigin() {
+  if (gpsPreferred && currentPosition) return currentPosition;
+  return placeById(startSelect.value);
+}
+
+function updateGuide() {
+  if (!destination) return;
+
+  const origin = getOrigin();
+  if (!activeRoute.length) recalculateRoute();
+
+  const nextWaypoint = getNextWaypoint(origin, activeRoute);
+  const distance = routeDistanceFrom(origin, activeRoute);
+  const etaSeconds = routeEtaSecondsFrom(origin, activeRoute);
+  const bearing = bearingDegrees(origin, nextWaypoint);
+  const relativeBearing = normalizeDeg(bearing - headingDeg);
+  const displayBearing = smoothBearing(relativeBearing);
+  const instruction = turnInstruction(origin, activeRoute, relativeBearing);
+  const landmark = landmarkInstruction(activeRoute, nextWaypoint);
+
+  distanceText.textContent = formatDistance(distance);
+  etaText.textContent = formatEta(etaSeconds);
+  arrow.style.transform = `rotate(${displayBearing}deg)`;
+  bearingText.textContent = `Next: ${nextWaypoint.name} | ${Math.round(relativeBearing)} deg from phone direction`;
+  instructionText.textContent = landmark ? `${instruction} ${landmark}` : instruction;
+  renderRouteMap(activeRoute, origin);
+
+  if (lastDistance !== null) {
+    const delta = distance - lastDistance;
+    if (Math.abs(delta) < 1) {
+      trendText.textContent = "Hold course";
+    } else if (delta < 0) {
+      trendText.textContent = "Distance decreasing";
+      trendText.style.color = "var(--ok)";
+    } else {
+      trendText.textContent = "Opposite direction";
+      trendText.style.color = "var(--warn)";
     }
-  }, 700);
+  }
+
+  if (gpsPreferred && currentPosition && Date.now() - lastMovementAt > STANDING_STILL_MS) {
+    trendText.textContent = "You are not moving";
+    trendText.style.color = "var(--warn)";
+    setStatus("You are not moving. Walk a few steps for better direction updates.", "warn");
+  }
+
+  if (distance <= arrivalRadiusFor(destination)) {
+    trendText.textContent = "You have arrived";
+    trendText.style.color = "var(--ok)";
+    setStatus(`Arrived at ${destination.name}.`, "ok");
+  } else if (!(gpsPreferred && currentPosition && Date.now() - lastMovementAt > STANDING_STILL_MS)) {
+    setStatus(`Follow the fastest path to ${destination.name}.`, "ok");
+  }
+
+  lastDistance = distance;
 }
 
-async function bootNavigation() {
-  if (booted) return;
-  booted = true;
-  await loadPlacesFromBackend();
-  fillSelects();
+async function startNavigation() {
   await startCamera();
-  setTimeout(() => {
-    if (stepScan.classList.contains("active")) startMarkerScan();
-  }, 900);
+  destination = placeById(destinationSelect.value);
+  selectedStartId = startSelect.value;
+  lastDistance = null;
+  smoothedRelativeBearing = 0;
+  trendText.style.color = "";
+  gpsPreferred = Boolean(currentPosition);
+
+  if (startSelect.value === destinationSelect.value && !gpsPreferred) {
+    setStatus("Choose a different destination or use your live GPS position.", "warn");
+    return;
+  }
+
+  warnIfInsecureContext();
+  recalculateRoute();
+  document.body.classList.add("navigating");
+  setStatus(`Calculating fastest path to ${destination.name}.`, "ok");
+  updateGuide();
+
+  requestCompassPermission().then(() => {
+    showToast("Move your phone in a figure-8 motion to calibrate compass.");
+  });
+  startGpsWatch();
+  window.addEventListener("deviceorientation", handleOrientation, true);
+  window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+
+  updateGuide();
 }
 
-window.addEventListener("deviceorientationabsolute", event => {
-  if (typeof event.alpha === "number") {
-    heading = 360 - event.alpha;
-    updateArrow();
-  }
-});
-window.addEventListener("deviceorientation", event => {
-  if (typeof event.alpha === "number") {
-    heading = 360 - event.alpha;
-    updateArrow();
-  }
-});
+function showRoutePicker() {
+  document.body.classList.remove("navigating");
+  setStatus("Route selection is open.", "ok");
+}
 
-document.getElementById("scanBtn").addEventListener("click", () => {
-  currentPlace = findPlace(startSelect.value);
-  modeText.textContent = "Starting point: " + currentPlace.name;
-  showStep(stepDestination);
-});
-document.getElementById("autoScanBtn").addEventListener("click", startMarkerScan);
-document.getElementById("rescanBtn").addEventListener("click", () => {
-  clearInterval(markerScanTimer);
-  document.body.classList.remove("guiding");
-  scanFrame.style.display = "block";
-  arrowLayer.classList.remove("active");
-  modeText.textContent = "Scan starting building";
-  showStep(stepScan);
-});
-document.getElementById("startNavBtn").addEventListener("click", startGuide);
-document.getElementById("nextNodeBtn").addEventListener("click", () => {
-  if (routeIndex < route.length - 1) {
-    routeIndex += 1;
-    currentPlace = route[routeIndex];
+function goBack() {
+  if (document.body.classList.contains("navigating")) {
+    showRoutePicker();
+    return;
   }
-  updateArrow();
-});
-document.getElementById("stopBtn").addEventListener("click", () => {
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-  clearInterval(markerScanTimer);
-  document.body.classList.remove("guiding");
-  location.href = "index.html";
-});
 
-bootNavigation();
+  if (history.length > 1) {
+    history.back();
+  } else {
+    location.href = "index.html";
+  }
+}
+
+function useSelectedStart() {
+  gpsPreferred = false;
+  currentPosition = null;
+  selectedStartId = startSelect.value;
+  activeRoute = [];
+  smoothedRelativeBearing = 0;
+  accuracyText.textContent = "Selected start";
+  lastDistance = null;
+  setStatus(`Starting from ${placeById(startSelect.value).name}.`, "ok");
+  if (destination) recalculateRoute();
+  updateGuide();
+}
+
+populateSelects();
+
+startBtn.addEventListener("click", startNavigation);
+changeRouteBtn.addEventListener("click", showRoutePicker);
+backBtn.addEventListener("click", goBack);
+useGpsBtn.addEventListener("click", async () => {
+  gpsPreferred = true;
+  warnIfInsecureContext();
+  await startCamera();
+  startGpsWatch();
+  setStatus("Using live GPS when permission is allowed.", "ok");
+  updateGuide();
+});
+startSelect.addEventListener("change", useSelectedStart);
+destinationSelect.addEventListener("change", () => {
+  destination = placeById(destinationSelect.value);
+  activeRoute = [];
+  lastDistance = null;
+  smoothedRelativeBearing = 0;
+  recalculateRoute();
+  updateGuide();
+});
 </script>
 </body>
 </html>

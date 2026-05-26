@@ -205,7 +205,8 @@ async function submitToSupabase(payload) {
     body: JSON.stringify({
       user_name: payload.user_name,
       marker_id: payload.marker_id || null,
-      comment: payload.comment
+      comment: payload.comment,
+      created_at: new Date().toISOString()
     })
   });
 
