@@ -663,18 +663,18 @@ const PLACES = [
 
 const WALKING_SPEED_MPS = 1.25;
 const ARRIVAL_RADIUS_M = 7;
-const ARRIVAL_CONFIRM_READINGS = 2;
+const ARRIVAL_CONFIRM_READINGS = 1;
 const ARRIVAL_EXIT_BUFFER_M = 6;
-const MAX_USABLE_ACCURACY_M = 120;
+const MAX_USABLE_ACCURACY_M = Infinity;
 const GOOD_ACCURACY_M = 18;
 const MAX_WALKING_JUMP_MPS = 12;
 const OFF_ROUTE_DISTANCE_M = 22;
 const REROUTE_COOLDOWN_MS = 8000;
 const STANDING_STILL_MS = 9000;
 const CAMERA_RETRY_DELAY_MS = 600;
-const HEADING_SMOOTHING = 0.12;
+const HEADING_SMOOTHING = 0.18;
 const BEARING_SMOOTHING = 0.14;
-const MAX_HEADING_STEP_DEG = 38;
+const MAX_HEADING_STEP_DEG = 55;
 const ORIENTATION_UPDATE_MS = 120;
 const ROUTE_LINKS = [
   ["main-gate", "intersection-a"],
@@ -1132,6 +1132,7 @@ let orientationListening = false;
 let arrivalConfidence = 0;
 let arrivedPlaceId = null;
 let liveGpsFixAt = 0;
+let gpsPollTimer = null;
 
 function populateSelects() {
   const options = PLACES
@@ -1741,8 +1742,8 @@ function handleOrientation(event) {
   if (typeof event.webkitCompassHeading === "number") {
     if (typeof event.webkitCompassAccuracy === "number" && event.webkitCompassAccuracy > 45) return;
     rawHeading = event.webkitCompassHeading;
-  } else if (typeof event.alpha === "number") {
-    rawHeading = 360 - event.alpha;
+  } else {
+    return;
   }
 
   if (rawHeading === null || !Number.isFinite(rawHeading)) return;
@@ -1760,6 +1761,26 @@ function handleOrientation(event) {
   updateGuide();
 }
 
+function updateHeadingFromGps(previous, candidate, coords) {
+  let gpsHeading = Number.isFinite(coords.heading) && coords.heading >= 0 ? coords.heading : null;
+  const movedMeters = previous ? distanceMeters(previous, candidate) : 0;
+
+  if (gpsHeading === null && previous && movedMeters >= 1.5) {
+    gpsHeading = bearingDegrees(previous, candidate);
+  }
+
+  if (gpsHeading === null) return;
+
+  gpsHeading = normalizeDeg(gpsHeading);
+  if (!hasCompassHeading) {
+    headingDeg = gpsHeading;
+    hasCompassHeading = true;
+  } else {
+    const delta = angleDelta(headingDeg, gpsHeading);
+    headingDeg = normalizeDeg(headingDeg + delta * 0.35);
+  }
+}
+
 function acceptGpsReading(position) {
   const accuracy = position.coords.accuracy || Infinity;
   const candidate = {
@@ -1769,49 +1790,26 @@ function acceptGpsReading(position) {
     timestamp: position.timestamp || Date.now()
   };
 
-  if (accuracy > MAX_USABLE_ACCURACY_M) {
-    accuracyText.textContent = `GPS signal too weak (${Math.round(accuracy)} m)`;
-    setStatus("GPS signal is too weak. Move to an open area and wait a moment.", "warn");
+  if (!Number.isFinite(candidate.lat) || !Number.isFinite(candidate.lng)) {
+    setStatus("GPS did not return a valid location yet.", "warn");
     return false;
   }
 
-  if (accuracy > GOOD_ACCURACY_M) {
-    accuracyText.textContent = `GPS weak but tracking (${Math.round(accuracy)} m)`;
-  }
-
-  if (lastAcceptedGps) {
-    const elapsedSeconds = Math.max(1, (candidate.timestamp - lastAcceptedGps.timestamp) / 1000);
-    const jumpSpeed = distanceMeters(lastAcceptedGps, candidate) / elapsedSeconds;
-    if (jumpSpeed > MAX_WALKING_JUMP_MPS && accuracy > GOOD_ACCURACY_M) {
-      const previousDestinationDistance = destination ? distanceToPlaceMeters(lastAcceptedGps, destination) : Infinity;
-      const candidateDestinationDistance = destination ? distanceToPlaceMeters(candidate, destination) : Infinity;
-      const movingTowardDestination = candidateDestinationDistance < previousDestinationDistance - 3;
-      if (!movingTowardDestination) {
-        accuracyText.textContent = `GPS jump ignored (${Math.round(accuracy)} m)`;
-        return false;
-      }
-    }
-
-    if (distanceMeters(lastAcceptedGps, candidate) > 1.5) {
-      lastMovementAt = candidate.timestamp;
-    }
-  } else {
+  const previousGps = lastAcceptedGps;
+  if (previousGps && distanceMeters(previousGps, candidate) > 0.4) {
+    lastMovementAt = candidate.timestamp;
+  } else if (!previousGps) {
     lastMovementAt = candidate.timestamp;
   }
 
+  updateHeadingFromGps(previousGps, candidate, position.coords);
   liveGpsFixAt = Date.now();
   lastAcceptedGps = candidate;
-  const blend = accuracy <= GOOD_ACCURACY_M ? 0.72 : accuracy <= 35 ? 0.55 : 0.38;
-  currentPosition = {
-    lat: currentPosition
-      ? currentPosition.lat * (1 - blend) + candidate.lat * blend
-      : candidate.lat,
-    lng: currentPosition
-      ? currentPosition.lng * (1 - blend) + candidate.lng * blend
-      : candidate.lng,
-    accuracy,
-    timestamp: candidate.timestamp
-  };
+  currentPosition = candidate;
+
+  accuracyText.textContent = Number.isFinite(accuracy)
+    ? `GPS ${Math.round(accuracy)} m`
+    : "GPS active";
 
   return true;
 }
@@ -1858,6 +1856,12 @@ function requestCurrentGpsFix() {
   });
 }
 
+function pollGps() {
+  requestCurrentGpsFix().finally(() => {
+    gpsPollTimer = window.setTimeout(pollGps, 2000);
+  });
+}
+
 function startGpsWatch() {
   if (!navigator.geolocation) {
     accuracyText.textContent = "GPS unavailable";
@@ -1865,18 +1869,22 @@ function startGpsWatch() {
     return;
   }
 
-  if (watchId !== null) return;
+  if (watchId === null) {
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        acceptPositionUpdate(position);
+      },
+      () => {
+        accuracyText.textContent = "GPS blocked";
+        setStatus("Allow location permission so distance changes while you walk.", "warn");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+    );
+  }
 
-  watchId = navigator.geolocation.watchPosition(
-    (position) => {
-      acceptPositionUpdate(position);
-    },
-    () => {
-      accuracyText.textContent = "GPS blocked";
-      setStatus("Allow location permission so distance changes while you walk.", "warn");
-    },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-  );
+  if (gpsPollTimer === null) {
+    pollGps();
+  }
 }
 
 function getOrigin() {
@@ -1912,10 +1920,10 @@ function updateGuide() {
 
   distanceText.textContent = formatDistance(displayedDistance);
   etaText.textContent = formatEta(displayedEtaSeconds);
-  arrow.style.transform = `rotate(${displayBearing}deg)`;
+  arrow.style.transform = hasCompassHeading ? `rotate(${displayBearing}deg)` : "rotate(0deg)";
   bearingText.textContent = hasCompassHeading
     ? `Next: ${nextWaypoint.name} | ${Math.round(relativeBearing)} deg from phone direction`
-    : `Next: ${nextWaypoint.name} | waiting for compass`;
+    : `Next: ${nextWaypoint.name} | walk forward for arrow direction`;
   instructionText.textContent = landmark ? `${instruction} ${landmark}` : instruction;
   renderRouteMap(activeRoute, origin);
   trendText.textContent = `Next: ${nextWaypoint.name}`;
