@@ -427,14 +427,14 @@ button.secondary {
   position: fixed;
   left: 50%;
   top: 50%;
-  z-index: 14;
+  z-index: 30;
   display: none;
   width: min(86vw, 460px);
   transform: translate(-50%, -50%);
   padding: 18px 20px;
-  border: 1px solid rgba(34,197,94,.72);
+  border: 1px solid rgba(34,197,94,.86);
   border-radius: 8px;
-  background: rgba(10, 24, 18, .72);
+  background: rgba(10, 24, 18, .82);
   color: #ecfdf5;
   text-align: center;
   backdrop-filter: blur(12px);
@@ -663,11 +663,11 @@ const PLACES = [
 
 const WALKING_SPEED_MPS = 1.25;
 const ARRIVAL_RADIUS_M = 7;
-const ARRIVAL_CONFIRM_READINGS = 3;
+const ARRIVAL_CONFIRM_READINGS = 2;
 const ARRIVAL_EXIT_BUFFER_M = 6;
-const MAX_USABLE_ACCURACY_M = 35;
+const MAX_USABLE_ACCURACY_M = 65;
 const GOOD_ACCURACY_M = 18;
-const MAX_WALKING_JUMP_MPS = 4.2;
+const MAX_WALKING_JUMP_MPS = 12;
 const OFF_ROUTE_DISTANCE_M = 22;
 const REROUTE_COOLDOWN_MS = 8000;
 const STANDING_STILL_MS = 9000;
@@ -1110,6 +1110,7 @@ const statusText = document.getElementById("statusText");
 const calibrationToast = document.getElementById("calibrationToast");
 const arrivalAr = document.getElementById("arrivalAr");
 const arrivalArText = document.getElementById("arrivalArText");
+const arrivalArTitle = arrivalAr.querySelector("strong");
 
 let currentPosition = null;
 let lastAcceptedGps = null;
@@ -1193,7 +1194,7 @@ function distanceToPlaceMeters(point, place) {
 function stableArrivalRadiusFor(place, origin) {
   const baseRadius = arrivalRadiusFor(place);
   const accuracyBuffer = origin && Number.isFinite(origin.accuracy)
-    ? Math.min(origin.accuracy * 0.25, 5)
+    ? Math.min(origin.accuracy * 0.30, 8)
     : 0;
   return baseRadius + accuracyBuffer;
 }
@@ -1453,6 +1454,18 @@ function formatEta(meters) {
   return `${Math.max(1, Math.round(meters / 60))} min`;
 }
 
+function stabilizedDisplayDistance(rawDistance, origin) {
+  if (!Number.isFinite(rawDistance)) return rawDistance;
+  if (!gpsPreferred || !currentPosition || !Number.isFinite(lastDistance)) return rawDistance;
+
+  const accuracy = origin && Number.isFinite(origin.accuracy) ? origin.accuracy : GOOD_ACCURACY_M;
+  const jitterAllowance = Math.min(Math.max(accuracy * 0.28, 2), 8);
+
+  if (rawDistance <= lastDistance) return rawDistance;
+  if (rawDistance <= lastDistance + jitterAllowance) return lastDistance;
+  return rawDistance;
+}
+
 function setStatus(message, tone = "") {
   statusText.textContent = message;
   statusText.className = `status ${tone}`.trim();
@@ -1462,7 +1475,8 @@ function setArrivalAr(active, place = destination) {
   arrivalAr.classList.toggle("active", active);
   arrivalAr.setAttribute("aria-hidden", active ? "false" : "true");
   if (active && place) {
-    arrivalArText.textContent = `You are in front of ${place.name}.`;
+    arrivalArTitle.textContent = `You've arrived at ${place.name}`;
+    arrivalArText.textContent = "You are in front of your desired destination.";
   }
 }
 
@@ -1756,17 +1770,26 @@ function acceptGpsReading(position) {
   };
 
   if (accuracy > MAX_USABLE_ACCURACY_M) {
-    accuracyText.textContent = `GPS signal weak (${Math.round(accuracy)} m)`;
-    setStatus("GPS signal weak. Move to an open area for better navigation.", "warn");
+    accuracyText.textContent = `GPS signal too weak (${Math.round(accuracy)} m)`;
+    setStatus("GPS signal is too weak. Move to an open area and wait a moment.", "warn");
     return false;
+  }
+
+  if (accuracy > GOOD_ACCURACY_M) {
+    accuracyText.textContent = `GPS weak but tracking (${Math.round(accuracy)} m)`;
   }
 
   if (lastAcceptedGps) {
     const elapsedSeconds = Math.max(1, (candidate.timestamp - lastAcceptedGps.timestamp) / 1000);
     const jumpSpeed = distanceMeters(lastAcceptedGps, candidate) / elapsedSeconds;
     if (jumpSpeed > MAX_WALKING_JUMP_MPS && accuracy > GOOD_ACCURACY_M) {
-      accuracyText.textContent = `GPS jump ignored (${Math.round(accuracy)} m)`;
-      return false;
+      const previousDestinationDistance = destination ? distanceToPlaceMeters(lastAcceptedGps, destination) : Infinity;
+      const candidateDestinationDistance = destination ? distanceToPlaceMeters(candidate, destination) : Infinity;
+      const movingTowardDestination = candidateDestinationDistance < previousDestinationDistance - 3;
+      if (!movingTowardDestination) {
+        accuracyText.textContent = `GPS jump ignored (${Math.round(accuracy)} m)`;
+        return false;
+      }
     }
 
     if (distanceMeters(lastAcceptedGps, candidate) > 1.5) {
@@ -1777,12 +1800,13 @@ function acceptGpsReading(position) {
   }
 
   lastAcceptedGps = candidate;
+  const blend = accuracy <= GOOD_ACCURACY_M ? 0.72 : accuracy <= 35 ? 0.55 : 0.38;
   currentPosition = {
     lat: currentPosition
-      ? currentPosition.lat * 0.68 + candidate.lat * 0.32
+      ? currentPosition.lat * (1 - blend) + candidate.lat * blend
       : candidate.lat,
     lng: currentPosition
-      ? currentPosition.lng * 0.68 + candidate.lng * 0.32
+      ? currentPosition.lng * (1 - blend) + candidate.lng * blend
       : candidate.lng,
     accuracy,
     timestamp: candidate.timestamp
@@ -1821,9 +1845,11 @@ function startGpsWatch() {
     (position) => {
       gpsPreferred = true;
       if (!acceptGpsReading(position)) return;
-      accuracyText.textContent = position.coords.accuracy
-        ? `Accuracy ${Math.round(position.coords.accuracy)} m`
-        : "GPS active";
+      if (!position.coords.accuracy || position.coords.accuracy <= GOOD_ACCURACY_M) {
+        accuracyText.textContent = position.coords.accuracy
+          ? `Accuracy ${Math.round(position.coords.accuracy)} m`
+          : "GPS active";
+      }
       maybeRerouteFromGps();
       updateGuide();
     },
@@ -1831,7 +1857,7 @@ function startGpsWatch() {
       accuracyText.textContent = "GPS blocked";
       setStatus("Allow location permission so distance changes while you walk.", "warn");
     },
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 }
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
   );
 }
 
@@ -1859,8 +1885,14 @@ function updateGuide() {
   const instruction = turnInstruction(origin, activeRoute, relativeBearing);
   const landmark = landmarkInstruction(activeRoute, nextWaypoint);
 
-  distanceText.textContent = formatDistance(distance);
-  etaText.textContent = formatEta(etaSeconds);
+  const rawDisplayedDistance = gpsPreferred && currentPosition ? destinationDistance : distance;
+  const displayedDistance = stabilizedDisplayDistance(rawDisplayedDistance, origin);
+  const displayedEtaSeconds = gpsPreferred && currentPosition
+    ? displayedDistance / WALKING_SPEED_MPS
+    : etaSeconds;
+
+  distanceText.textContent = formatDistance(displayedDistance);
+  etaText.textContent = formatEta(displayedEtaSeconds);
   arrow.style.transform = `rotate(${displayBearing}deg)`;
   bearingText.textContent = hasCompassHeading
     ? `Next: ${nextWaypoint.name} | ${Math.round(relativeBearing)} deg from phone direction`
@@ -1886,7 +1918,7 @@ function updateGuide() {
     setStatus(`Follow the fastest path to ${destination.name}.`, "ok");
   }
 
-  lastDistance = distance;
+  lastDistance = displayedDistance;
 }
 
 async function startNavigation() {
