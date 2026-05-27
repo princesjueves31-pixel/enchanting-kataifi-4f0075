@@ -423,6 +423,42 @@ button.secondary {
   display: none;
 }
 
+.arrival-ar {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 14;
+  display: none;
+  width: min(86vw, 460px);
+  transform: translate(-50%, -50%);
+  padding: 18px 20px;
+  border: 1px solid rgba(34,197,94,.72);
+  border-radius: 8px;
+  background: rgba(10, 24, 18, .72);
+  color: #ecfdf5;
+  text-align: center;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 22px 60px rgba(0,0,0,.34);
+  pointer-events: none;
+}
+
+.arrival-ar.active {
+  display: block;
+}
+
+.arrival-ar strong {
+  display: block;
+  font-size: clamp(28px, 8vw, 48px);
+  line-height: 1;
+}
+
+.arrival-ar span {
+  display: block;
+  margin-top: 8px;
+  color: rgba(236,253,245,.82);
+  font-size: clamp(14px, 3.8vw, 18px);
+}
+
 .guide-hud {
   position: fixed;
   left: 12px;
@@ -570,51 +606,65 @@ body.camera-ready .camera-fallback {
   </div>
 </section>
 
+<div id="arrivalAr" class="arrival-ar" role="status" aria-live="polite" aria-hidden="true">
+  <strong>You&apos;ve arrived</strong>
+  <span id="arrivalArText">You are in front of your destination.</span>
+</div>
 <div id="calibrationToast" class="toast">Move your phone in a figure-8 motion to calibrate compass.</div>
 
 <script>
 const PLACES = [
-  { id: "main-gate", name: "Main Gate", lat: 8.160888, lng: 123.959633 },
-  { id: "claudio-cabug", name: "Claudio Cabug Building", lat: 8.161081, lng: 123.959652 },
-  { id: "medical-rooms", name: "Medical Rooms", lat: 8.161172, lng: 123.959541 },
-  { id: "computer-laboratory", name: "Computer Laboratory", lat: 8.161286, lng: 123.959492 },
-  { id: "avr", name: "AVR", lat: 8.161400, lng: 123.959478 },
-  { id: "cafeteria", name: "Cafeteria", lat: 8.160929, lng: 123.959148 },
-  { id: "jhs", name: "JHS", lat: 8.160751, lng: 123.959038 },
-  { id: "tennis-court", name: "Tennis Court", lat: 8.161079, lng: 123.959396 },
-  { id: "academic-building", name: "Academic Building", lat: 8.161501, lng: 123.959246 },
-  { id: "det", name: "DET", lat: 8.161572, lng: 123.959357 },
-  { id: "dti", name: "DTI", lat: 8.161261, lng: 123.959116 },
-  { id: "college-department", name: "College Department Building", lat: 8.161396, lng: 123.960133 },
-  { id: "rotc-office", name: "ROTC Office", lat: 8.161292, lng: 123.959984 },
-  { id: "flagpole", name: "Flagpole", lat: 8.161147, lng: 123.959904 },
+  { id: "main-gate", name: "Main Gate", lat: 8.160868, lng: 123.959592 },
+  { id: "claudio-cabug", name: "Claudio Cabug Building", lat: 8.160997, lng: 123.959690 },
+  { id: "medical-rooms", name: "Medical Rooms", lat: 8.161137, lng: 123.959588 },
+  { id: "computer-laboratory", name: "Computer Laboratory", lat: 8.161281, lng: 123.959455 },
+  { id: "avr", name: "AVR", lat: 8.161332, lng: 123.959436 },
+  { id: "cafeteria", name: "Cafeteria", lat: 8.160896, lng: 123.959209 },
+  { id: "jhs", name: "JHS", lat: 8.160870, lng: 123.959057 },
+  { id: "tennis-court", name: "Tennis Court", lat: 8.160953, lng: 123.959360 },
+  { id: "academic-building", name: "Academic Building", lat: 8.161048, lng: 123.959469 },
+  { id: "det", name: "DET", lat: 8.161394, lng: 123.959400 },
+  { id: "dti", name: "DTI", lat: 8.161251, lng: 123.959141 },
+  { id: "college-department", name: "College Department Building", lat: 8.161404, lng: 123.960146 },
+  { id: "rotc-office", name: "ROTC Office", lat: 8.161289, lng: 123.960024 },
+  { id: "flagpole", name: "Flagpole", lat: 8.161164, lng: 123.959904 },
   { id: "basketball-court", name: "Basketball Court", lat: 8.161271, lng: 123.959723 },
-  { id: "dit-laboratories", name: "DIT Laboratories", lat: 8.161770, lng: 123.958850 },
-  { id: "isl", name: "ISL", lat: 8.161979, lng: 123.958622 },
-  { id: "dit", name: "DIT", lat: 8.161751, lng: 123.958410 },
-  { id: "college-annex", name: "College Annex Building", lat: 8.162538, lng: 123.959358 },
-  { id: "pavilion", name: "Pavilion", lat: 8.162259, lng: 123.959218 },
-  { id: "oval", name: "Oval", lat: 8.162034, lng: 123.959761 },
-  { id: "palawan-building", name: "Palawan Building", lat: 8.162623, lng: 123.959817 },
-  { id: "ringia-hotel", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.162148, lng: 123.960077 },
-  { id: "administration", name: "Administration Building", lat: 8.161952, lng: 123.960196 },
-  { id: "campus-gym", name: "Campus Gymnasium", lat: 8.161643, lng: 123.960348 },
-  { id: "badminton-court", name: "Badminton Court", lat: 8.161393, lng: 123.960502 },
-  { id: "sdc", name: "SDC", lat: 8.161628, lng: 123.959504 },
+  { id: "dit-laboratories", name: "DIT Laboratories", lat: 8.161772, lng: 123.958869 },
+  { id: "isl", name: "ISL", lat: 8.162034, lng: 123.958729 },
+  { id: "dit", name: "DIT", lat: 8.161793, lng: 123.958404 },
+  { id: "college-annex", name: "College Annex Building", lat: 8.162542, lng: 123.959373 },
+  { id: "pavilion", name: "Pavilion", lat: 8.162211, lng: 123.959163 },
+  { id: "oval", name: "Oval", lat: 8.162321, lng: 123.959371, entrances: [{ lat: 8.162321, lng: 123.959371 }, { lat: 8.161452, lng: 123.959829 }] },
+  { id: "palawan-building", name: "Palawan Building", lat: 8.162668, lng: 123.959759 },
+  { id: "ringia-hotel", name: "Dr. Magadapa A. Ringia Hotel", lat: 8.162140, lng: 123.960061 },
+  { id: "administration", name: "Administration Building", lat: 8.161927, lng: 123.960194 },
+  { id: "campus-gym", name: "Campus Gym", lat: 8.161686, lng: 123.960301 },
+  { id: "badminton-court", name: "Badminton Court", lat: 8.161401, lng: 123.960477 },
+  { id: "sdc", name: "SDC", lat: 8.161611, lng: 123.959523 },
   { id: "tambayan-a", name: "Tambayan a", lat: 8.161829, lng: 123.959076 },
   { id: "tambayan-b", name: "Tambayan b", lat: 8.161885, lng: 123.959140 },
-  { id: "fab-shop", name: "Fab. Shop / SHS Smaw LAB", lat: 8.161497, lng: 123.958988 },
-  { id: "girls-dormitories", name: "Girl's Dormitories", lat: 8.162279, lng: 123.958925 },
-  { id: "executive-house", name: "Executive House", lat: 8.162100, lng: 123.958953 },
-  { id: "intersection-a", name: "Intersection A (straight)", lat: 8.160934, lng: 123.959610, selectable: false },
-  { id: "intersection-b", name: "Intersection B (right)", lat: 8.160957, lng: 123.959656, selectable: false },
-  { id: "intersection-c", name: "Intersection C (left)", lat: 8.160932, lng: 123.959528, selectable: false },
-  { id: "intersection-d", name: "Intersection D (left DTI)", lat: 8.161299, lng: 123.959298, selectable: false },
+  { id: "fab-shop", name: "Fab. Shop / SHS Smaw LAB", lat: 8.161484, lng: 123.959026 },
+  { id: "girls-dormitories", name: "Girl's Dormitories", lat: 8.162255, lng: 123.958952 },
+  { id: "executive-house", name: "Executive House", lat: 8.162186, lng: 123.958972 },
+  { id: "intersection-a", name: "Intersection A (straight)", lat: 8.160951, lng: 123.959590, selectable: false },
+  { id: "intersection-b", name: "Intersection B (right)", lat: 8.160938, lng: 123.959604, selectable: false },
+  { id: "intersection-c", name: "Intersection C (left)", lat: 8.160944, lng: 123.959587, selectable: false },
+  { id: "jhs-turn-right", name: "JHS/Cafeteria turn right", lat: 8.160863, lng: 123.959384, selectable: false },
+  { id: "jhs-turn-left", name: "JHS/Cafeteria turn left", lat: 8.160955, lng: 123.959324, selectable: false },
+  { id: "sdc-turn-left", name: "SDC turn left", lat: 8.161117, lng: 123.959967, selectable: false },
+  { id: "gym-turn-left", name: "Gym/Admin turn left", lat: 8.161379, lng: 123.960459, selectable: false },
+  { id: "dti-turn-left", name: "DTI turn left", lat: 8.161333, lng: 123.959373, selectable: false },
+  { id: "fab-turn-right", name: "Fab Shop turn right", lat: 8.161253, lng: 123.959169, selectable: false },
+  { id: "dit-turn-left", name: "DIT turn left", lat: 8.161966, lng: 123.958799, selectable: false },
+  { id: "dorm-turn-right", name: "Girls Dormitory turn right", lat: 8.162082, lng: 123.959002, selectable: false },
+  { id: "intersection-d", name: "Intersection D (left DTI)", lat: 8.161333, lng: 123.959373, selectable: false },
   { id: "intersection-e", name: "Intersection E (left ISL)", lat: 8.162050, lng: 123.958949, selectable: false }
 ];
 
 const WALKING_SPEED_MPS = 1.25;
 const ARRIVAL_RADIUS_M = 7;
+const ARRIVAL_CONFIRM_READINGS = 3;
+const ARRIVAL_EXIT_BUFFER_M = 6;
 const MAX_USABLE_ACCURACY_M = 35;
 const GOOD_ACCURACY_M = 18;
 const MAX_WALKING_JUMP_MPS = 4.2;
@@ -622,6 +672,10 @@ const OFF_ROUTE_DISTANCE_M = 22;
 const REROUTE_COOLDOWN_MS = 8000;
 const STANDING_STILL_MS = 9000;
 const CAMERA_RETRY_DELAY_MS = 600;
+const HEADING_SMOOTHING = 0.12;
+const BEARING_SMOOTHING = 0.14;
+const MAX_HEADING_STEP_DEG = 38;
+const ORIENTATION_UPDATE_MS = 120;
 const ROUTE_LINKS = [
   ["main-gate", "intersection-a"],
   ["main-gate", "intersection-b"],
@@ -629,15 +683,27 @@ const ROUTE_LINKS = [
   ["intersection-a", "claudio-cabug"],
   ["intersection-b", "claudio-cabug"],
   ["intersection-c", "tennis-court"],
+  ["intersection-c", "jhs-turn-right"],
+  ["tennis-court", "jhs-turn-right"],
+  ["jhs-turn-right", "jhs-turn-left"],
+  ["jhs-turn-left", "cafeteria"],
+  ["jhs-turn-left", "jhs"],
   ["claudio-cabug", "flagpole"],
+  ["claudio-cabug", "sdc-turn-left"],
+  ["sdc-turn-left", "flagpole"],
   ["claudio-cabug", "tennis-court"],
   ["claudio-cabug", "medical-rooms"],
   ["medical-rooms", "computer-laboratory"],
   ["medical-rooms", "tennis-court"],
   ["computer-laboratory", "avr"],
+  ["computer-laboratory", "dti-turn-left"],
+  ["dti-turn-left", "avr"],
+  ["dti-turn-left", "dti"],
   ["avr", "academic-building"],
   ["avr", "det"],
   ["dti", "academic-building"],
+  ["dti", "fab-turn-right"],
+  ["fab-turn-right", "fab-shop"],
   ["academic-building", "intersection-d"],
   ["intersection-d", "dti"],
   ["intersection-d", "fab-shop"],
@@ -646,10 +712,15 @@ const ROUTE_LINKS = [
   ["cafeteria", "jhs"],
   ["cafeteria", "dti"],
   ["fab-shop", "dit-laboratories"],
+  ["dit-laboratories", "dit-turn-left"],
+  ["dit-turn-left", "dit"],
   ["det", "tambayan-b"],
   ["det", "academic-building"],
   ["tambayan-b", "tambayan-a"],
   ["tambayan-b", "executive-house"],
+  ["tambayan-b", "dorm-turn-right"],
+  ["executive-house", "dorm-turn-right"],
+  ["dorm-turn-right", "girls-dormitories"],
   ["executive-house", "intersection-e"],
   ["intersection-e", "isl"],
   ["intersection-e", "dit-laboratories"],
@@ -663,6 +734,8 @@ const ROUTE_LINKS = [
   ["basketball-court", "sdc"],
   ["flagpole", "college-department"],
   ["rotc-office", "flagpole"],
+  ["college-department", "gym-turn-left"],
+  ["gym-turn-left", "campus-gym"],
   ["college-department", "campus-gym"],
   ["campus-gym", "administration"],
   ["campus-gym", "badminton-court"],
@@ -675,8 +748,8 @@ const ROUTE_LINKS = [
 ];
 
 const PREFERRED_ROUTES = {
-  "main-gate>administration": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration"],
-  "main-gate>sdc": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "basketball-court", "sdc"],
+  "main-gate>administration": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "gym-turn-left", "campus-gym", "administration"],
+  "main-gate>sdc": ["main-gate", "intersection-b", "claudio-cabug", "sdc-turn-left", "flagpole", "basketball-court", "sdc"],
   "main-gate>claudio-cabug": ["main-gate", "intersection-b", "claudio-cabug"],
   "main-gate>medical-rooms": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms"],
   "main-gate>computer-laboratory": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory"],
@@ -685,22 +758,22 @@ const PREFERRED_ROUTES = {
   "main-gate>tambayan-a": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "tambayan-a"],
   "main-gate>tambayan-b": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b"],
   "main-gate>tennis-court": ["main-gate", "intersection-c", "tennis-court"],
-  "main-gate>jhs": ["main-gate", "intersection-c", "tennis-court", "cafeteria", "jhs"],
-  "main-gate>cafeteria": ["main-gate", "intersection-c", "tennis-court", "cafeteria"],
+  "main-gate>jhs": ["main-gate", "intersection-c", "tennis-court", "jhs-turn-right", "jhs-turn-left", "jhs"],
+  "main-gate>cafeteria": ["main-gate", "intersection-c", "tennis-court", "jhs-turn-right", "jhs-turn-left", "cafeteria"],
   "main-gate>college-department": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department"],
-  "main-gate>campus-gym": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym"],
-  "main-gate>dti": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti"],
-  "main-gate>fab-shop": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop"],
-  "main-gate>dit-laboratories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop", "dit-laboratories"],
-  "main-gate>dit": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building", "intersection-d", "dti", "fab-shop", "dit-laboratories", "dit"],
-  "main-gate>isl": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "intersection-e", "isl"],
+  "main-gate>campus-gym": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "gym-turn-left", "campus-gym"],
+  "main-gate>dti": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "dti-turn-left", "dti"],
+  "main-gate>fab-shop": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "dti-turn-left", "dti", "fab-turn-right", "fab-shop"],
+  "main-gate>dit-laboratories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "dti-turn-left", "dti", "fab-turn-right", "fab-shop", "dit-laboratories"],
+  "main-gate>dit": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "dti-turn-left", "dti", "fab-turn-right", "fab-shop", "dit-laboratories", "dit-turn-left", "dit"],
+  "main-gate>isl": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "dti-turn-left", "dti", "fab-turn-right", "fab-shop", "dit-laboratories", "dit-turn-left", "dit", "isl"],
   "main-gate>executive-house": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house"],
-  "main-gate>girls-dormitories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories"],
-  "main-gate>college-annex": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "college-annex"],
-  "main-gate>pavilion": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion"],
-  "main-gate>oval": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "girls-dormitories", "pavilion", "oval"],
-  "main-gate>palawan-building": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration", "ringia-hotel", "palawan-building"],
-  "main-gate>ringia-hotel": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "administration", "ringia-hotel"],
+  "main-gate>girls-dormitories": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "dorm-turn-right", "girls-dormitories"],
+  "main-gate>college-annex": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "dorm-turn-right", "girls-dormitories", "college-annex"],
+  "main-gate>pavilion": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "dorm-turn-right", "girls-dormitories", "pavilion"],
+  "main-gate>oval": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "det", "tambayan-b", "executive-house", "dorm-turn-right", "girls-dormitories", "pavilion", "oval"],
+  "main-gate>palawan-building": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "gym-turn-left", "campus-gym", "administration", "ringia-hotel", "palawan-building"],
+  "main-gate>ringia-hotel": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "gym-turn-left", "campus-gym", "administration", "ringia-hotel"],
   "main-gate>badminton-court": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "college-department", "campus-gym", "badminton-court"],
   "main-gate>rotc-office": ["main-gate", "intersection-b", "claudio-cabug", "flagpole", "rotc-office"],
   "main-gate>academic-building": ["main-gate", "intersection-a", "claudio-cabug", "medical-rooms", "computer-laboratory", "avr", "academic-building"],
@@ -1035,6 +1108,8 @@ const instructionText = document.getElementById("instructionText");
 const routeMap = document.getElementById("routeMap");
 const statusText = document.getElementById("statusText");
 const calibrationToast = document.getElementById("calibrationToast");
+const arrivalAr = document.getElementById("arrivalAr");
+const arrivalArText = document.getElementById("arrivalArText");
 
 let currentPosition = null;
 let lastAcceptedGps = null;
@@ -1042,6 +1117,8 @@ let destination = null;
 let activeRoute = [];
 let headingDeg = 0;
 let smoothedRelativeBearing = 0;
+let hasCompassHeading = false;
+let lastOrientationAt = 0;
 let lastDistance = null;
 let watchId = null;
 let gpsPreferred = false;
@@ -1050,10 +1127,14 @@ let lastRerouteAt = 0;
 let lastMovementAt = 0;
 let hasShownCompassToast = false;
 let cameraStartPromise = null;
+let orientationListening = false;
+let arrivalConfidence = 0;
+let arrivedPlaceId = null;
 
 function populateSelects() {
   const options = PLACES
     .filter((place) => place.selectable !== false)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     .map((place) => `<option value="${place.id}">${place.name}</option>`)
     .join("");
   startSelect.innerHTML = options;
@@ -1087,6 +1168,65 @@ function distanceMeters(from, to) {
   const a = Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function arrivalPointsFor(place) {
+  if (!place) return [];
+  return Array.isArray(place.entrances) && place.entrances.length
+    ? place.entrances
+    : [{ lat: place.lat, lng: place.lng }];
+}
+
+function nearestArrivalPoint(place, origin) {
+  const points = arrivalPointsFor(place);
+  const bestPoint = points
+    .map((point) => ({ point, distance: origin ? distanceMeters(origin, point) : 0 }))
+    .sort((a, b) => a.distance - b.distance)[0]?.point || place;
+  return { ...bestPoint, id: place.id, name: place.name };
+}
+
+function distanceToPlaceMeters(point, place) {
+  if (!point || !place) return Infinity;
+  return distanceMeters(point, nearestArrivalPoint(place, point));
+}
+
+function stableArrivalRadiusFor(place, origin) {
+  const baseRadius = arrivalRadiusFor(place);
+  const accuracyBuffer = origin && Number.isFinite(origin.accuracy)
+    ? Math.min(origin.accuracy * 0.25, 5)
+    : 0;
+  return baseRadius + accuracyBuffer;
+}
+
+function updateArrivalState(distance, place, origin) {
+  if (!place) return false;
+
+  const radius = stableArrivalRadiusFor(place, origin);
+  if (arrivedPlaceId === place.id) {
+    if (distance <= radius + ARRIVAL_EXIT_BUFFER_M) return true;
+    arrivedPlaceId = null;
+    arrivalConfidence = 0;
+    return false;
+  }
+
+  if (distance <= radius) {
+    arrivalConfidence = Math.min(ARRIVAL_CONFIRM_READINGS, arrivalConfidence + 1);
+  } else {
+    arrivalConfidence = Math.max(0, arrivalConfidence - 1);
+  }
+
+  if (arrivalConfidence >= ARRIVAL_CONFIRM_READINGS) {
+    arrivedPlaceId = place.id;
+    return true;
+  }
+
+  return false;
+}
+
+function resetArrivalState() {
+  arrivedPlaceId = null;
+  arrivalConfidence = 0;
+  setArrivalAr(false);
 }
 
 function bearingDegrees(from, to) {
@@ -1181,13 +1321,16 @@ function nearestPlace(point) {
 }
 
 function routeDistanceFrom(origin, route) {
-  const nextWaypoint = getNextWaypoint(origin, route);
-  if (!nextWaypoint) return 0;
+  if (!route.length) return 0;
+  if (route.length === 1) return distanceMeters(origin, route[0]);
 
-  const waypointIndex = route.findIndex((place) => place.id === nextWaypoint.id);
-  let total = distanceMeters(origin, nextWaypoint);
+  const segmentIndex = closestRouteSegmentIndex(origin, route);
+  const segmentStart = route[segmentIndex];
+  const segmentEnd = route[segmentIndex + 1];
+  const closest = closestPointOnSegment(origin, segmentStart, segmentEnd);
+  let total = distanceMeters(origin, closest) + distanceMeters(closest, segmentEnd);
 
-  for (let index = waypointIndex; index < route.length - 1; index++) {
+  for (let index = segmentIndex + 1; index < route.length - 1; index++) {
     total += distanceMeters(route[index], route[index + 1]);
   }
 
@@ -1203,13 +1346,16 @@ function edgeWalkingSpeed(from, to) {
 }
 
 function routeEtaSecondsFrom(origin, route) {
-  const nextWaypoint = getNextWaypoint(origin, route);
-  if (!nextWaypoint) return 0;
+  if (!route.length) return 0;
+  if (route.length === 1) return distanceMeters(origin, route[0]) / edgeWalkingSpeed(origin, route[0]);
 
-  const waypointIndex = route.findIndex((place) => place.id === nextWaypoint.id);
-  let seconds = distanceMeters(origin, nextWaypoint) / edgeWalkingSpeed(origin, nextWaypoint);
+  const segmentIndex = closestRouteSegmentIndex(origin, route);
+  const segmentStart = route[segmentIndex];
+  const segmentEnd = route[segmentIndex + 1];
+  const closest = closestPointOnSegment(origin, segmentStart, segmentEnd);
+  let seconds = (distanceMeters(origin, closest) + distanceMeters(closest, segmentEnd)) / edgeWalkingSpeed(segmentStart, segmentEnd);
 
-  for (let index = waypointIndex; index < route.length - 1; index++) {
+  for (let index = segmentIndex + 1; index < route.length - 1; index++) {
     seconds += distanceMeters(route[index], route[index + 1]) / edgeWalkingSpeed(route[index], route[index + 1]);
   }
 
@@ -1232,10 +1378,14 @@ function getNextWaypoint(origin, route) {
 
 function arrivalRadiusFor(place) {
   if (!place) return ARRIVAL_RADIUS_M;
-  return place.selectable === false ? 6 : 10;
+  return place.selectable === false ? 6 : ARRIVAL_RADIUS_M;
 }
 
 function distanceToSegmentMeters(point, start, end) {
+  return distanceMeters(point, closestPointOnSegment(point, start, end));
+}
+
+function closestPointOnSegment(point, start, end) {
   const metersPerLat = 111320;
   const metersPerLng = 111320 * Math.cos(toRad(point.lat));
   const px = (point.lng - start.lng) * metersPerLng;
@@ -1243,13 +1393,12 @@ function distanceToSegmentMeters(point, start, end) {
   const ex = (end.lng - start.lng) * metersPerLng;
   const ey = (end.lat - start.lat) * metersPerLat;
   const lengthSq = ex * ex + ey * ey;
-  if (!lengthSq) return distanceMeters(point, start);
+  if (!lengthSq) return { lat: start.lat, lng: start.lng };
   const t = Math.max(0, Math.min(1, (px * ex + py * ey) / lengthSq));
-  const closest = {
+  return {
     lat: start.lat + (end.lat - start.lat) * t,
     lng: start.lng + (end.lng - start.lng) * t
   };
-  return distanceMeters(point, closest);
 }
 
 function closestRouteSegmentIndex(point, route) {
@@ -1307,6 +1456,14 @@ function formatEta(meters) {
 function setStatus(message, tone = "") {
   statusText.textContent = message;
   statusText.className = `status ${tone}`.trim();
+}
+
+function setArrivalAr(active, place = destination) {
+  arrivalAr.classList.toggle("active", active);
+  arrivalAr.setAttribute("aria-hidden", active ? "false" : "true");
+  if (active && place) {
+    arrivalArText.textContent = `You are in front of ${place.name}.`;
+  }
 }
 
 function showToast(message, duration = 6500) {
@@ -1371,8 +1528,20 @@ function angleDelta(from, to) {
 
 function smoothBearing(targetBearing) {
   const delta = angleDelta(smoothedRelativeBearing, targetBearing);
-  smoothedRelativeBearing = normalizeDeg(smoothedRelativeBearing + delta * 0.22);
+  smoothedRelativeBearing = normalizeDeg(smoothedRelativeBearing + delta * BEARING_SMOOTHING);
   return smoothedRelativeBearing;
+}
+
+function resetArrowState() {
+  smoothedRelativeBearing = 0;
+  lastDistance = null;
+  resetArrivalState();
+  arrow.style.transform = "rotate(0deg)";
+  bearingText.textContent = hasCompassHeading
+    ? "Arrow will point to destination"
+    : "Hold phone upright for compass";
+  trendText.textContent = "Route ready";
+  trendText.style.color = "";
 }
 
 function routeProgressIndex(origin, route) {
@@ -1389,6 +1558,14 @@ function turnInstruction(origin, route, relativeBearing) {
     "intersection-a": "Go straight at Intersection A.",
     "intersection-b": "Turn right at Intersection B.",
     "intersection-c": "Turn left at Intersection C.",
+    "jhs-turn-right": "Turn right near the Tennis Court.",
+    "jhs-turn-left": "Turn left, then continue toward Cafeteria or JHS.",
+    "sdc-turn-left": "Turn left toward the Flagpole and Basketball Court.",
+    "gym-turn-left": "Turn left toward the Campus Gym.",
+    "dti-turn-left": "Turn left toward DTI.",
+    "fab-turn-right": "Turn right toward Fab. Shop / SHS Smaw LAB.",
+    "dit-turn-left": "Turn left toward DIT.",
+    "dorm-turn-right": "Turn right toward the Girls Dormitories.",
     "intersection-d": "Turn left at Intersection D.",
     "intersection-e": "Turn left near Intersection E."
   };
@@ -1537,16 +1714,35 @@ async function requestCompassPermission() {
 }
 
 function handleOrientation(event) {
+  const now = Date.now();
+  if (now - lastOrientationAt < ORIENTATION_UPDATE_MS) return;
+  lastOrientationAt = now;
+
   if (!hasShownCompassToast) {
     hasShownCompassToast = true;
     showToast("Move your phone in a figure-8 motion to calibrate compass.");
   }
 
+  let rawHeading = null;
   if (typeof event.webkitCompassHeading === "number") {
-    headingDeg = normalizeDeg(event.webkitCompassHeading);
+    if (typeof event.webkitCompassAccuracy === "number" && event.webkitCompassAccuracy > 45) return;
+    rawHeading = event.webkitCompassHeading;
   } else if (typeof event.alpha === "number") {
-    headingDeg = normalizeDeg(360 - event.alpha);
+    rawHeading = 360 - event.alpha;
   }
+
+  if (rawHeading === null || !Number.isFinite(rawHeading)) return;
+
+  rawHeading = normalizeDeg(rawHeading);
+  if (!hasCompassHeading) {
+    headingDeg = rawHeading;
+    hasCompassHeading = true;
+  } else {
+    const delta = angleDelta(headingDeg, rawHeading);
+    if (Math.abs(delta) > MAX_HEADING_STEP_DEG) return;
+    headingDeg = normalizeDeg(headingDeg + delta * HEADING_SMOOTHING);
+  }
+
   updateGuide();
 }
 
@@ -1651,9 +1847,13 @@ function updateGuide() {
   if (!activeRoute.length) recalculateRoute();
 
   const nextWaypoint = getNextWaypoint(origin, activeRoute);
+  const targetWaypoint = nextWaypoint.id === destination.id
+    ? nearestArrivalPoint(destination, origin)
+    : nextWaypoint;
   const distance = routeDistanceFrom(origin, activeRoute);
+  const destinationDistance = distanceToPlaceMeters(origin, destination);
   const etaSeconds = routeEtaSecondsFrom(origin, activeRoute);
-  const bearing = bearingDegrees(origin, nextWaypoint);
+  const bearing = bearingDegrees(origin, targetWaypoint);
   const relativeBearing = normalizeDeg(bearing - headingDeg);
   const displayBearing = smoothBearing(relativeBearing);
   const instruction = turnInstruction(origin, activeRoute, relativeBearing);
@@ -1662,32 +1862,25 @@ function updateGuide() {
   distanceText.textContent = formatDistance(distance);
   etaText.textContent = formatEta(etaSeconds);
   arrow.style.transform = `rotate(${displayBearing}deg)`;
-  bearingText.textContent = `Next: ${nextWaypoint.name} | ${Math.round(relativeBearing)} deg from phone direction`;
+  bearingText.textContent = hasCompassHeading
+    ? `Next: ${nextWaypoint.name} | ${Math.round(relativeBearing)} deg from phone direction`
+    : `Next: ${nextWaypoint.name} | waiting for compass`;
   instructionText.textContent = landmark ? `${instruction} ${landmark}` : instruction;
   renderRouteMap(activeRoute, origin);
-
-  if (lastDistance !== null) {
-    const delta = distance - lastDistance;
-    if (Math.abs(delta) < 1) {
-      trendText.textContent = "Hold course";
-    } else if (delta < 0) {
-      trendText.textContent = "Distance decreasing";
-      trendText.style.color = "var(--ok)";
-    } else {
-      trendText.textContent = "Opposite direction";
-      trendText.style.color = "var(--warn)";
-    }
-  }
+  trendText.textContent = `Next: ${nextWaypoint.name}`;
+  trendText.style.color = "";
 
   if (gpsPreferred && currentPosition && Date.now() - lastMovementAt > STANDING_STILL_MS) {
-    trendText.textContent = "You are not moving";
-    trendText.style.color = "var(--warn)";
     setStatus("You are not moving. Walk a few steps for better direction updates.", "warn");
   }
 
-  if (distance <= arrivalRadiusFor(destination)) {
-    trendText.textContent = "You have arrived";
+  const hasArrived = updateArrivalState(destinationDistance, destination, origin);
+  setArrivalAr(hasArrived, destination);
+
+  if (hasArrived) {
+    trendText.textContent = "You've arrived";
     trendText.style.color = "var(--ok)";
+    instructionText.textContent = `You've arrived at ${destination.name}.`;
     setStatus(`Arrived at ${destination.name}.`, "ok");
   } else if (!(gpsPreferred && currentPosition && Date.now() - lastMovementAt > STANDING_STILL_MS)) {
     setStatus(`Follow the fastest path to ${destination.name}.`, "ok");
@@ -1700,9 +1893,7 @@ async function startNavigation() {
   await startCamera();
   destination = placeById(destinationSelect.value);
   selectedStartId = startSelect.value;
-  lastDistance = null;
-  smoothedRelativeBearing = 0;
-  trendText.style.color = "";
+  resetArrowState();
   gpsPreferred = Boolean(currentPosition);
 
   if (startSelect.value === destinationSelect.value && !gpsPreferred) {
@@ -1720,14 +1911,18 @@ async function startNavigation() {
     showToast("Move your phone in a figure-8 motion to calibrate compass.");
   });
   startGpsWatch();
-  window.addEventListener("deviceorientation", handleOrientation, true);
-  window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+  if (!orientationListening) {
+    window.addEventListener("deviceorientation", handleOrientation, true);
+    window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+    orientationListening = true;
+  }
 
   updateGuide();
 }
 
 function showRoutePicker() {
   document.body.classList.remove("navigating");
+  resetArrowState();
   setStatus("Route selection is open.", "ok");
 }
 
@@ -1749,9 +1944,8 @@ function useSelectedStart() {
   currentPosition = null;
   selectedStartId = startSelect.value;
   activeRoute = [];
-  smoothedRelativeBearing = 0;
+  resetArrowState();
   accuracyText.textContent = "Selected start";
-  lastDistance = null;
   setStatus(`Starting from ${placeById(startSelect.value).name}.`, "ok");
   if (destination) recalculateRoute();
   updateGuide();
@@ -1774,8 +1968,7 @@ startSelect.addEventListener("change", useSelectedStart);
 destinationSelect.addEventListener("change", () => {
   destination = placeById(destinationSelect.value);
   activeRoute = [];
-  lastDistance = null;
-  smoothedRelativeBearing = 0;
+  resetArrowState();
   recalculateRoute();
   updateGuide();
 });
