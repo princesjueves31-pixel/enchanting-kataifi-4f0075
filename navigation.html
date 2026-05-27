@@ -665,7 +665,7 @@ const WALKING_SPEED_MPS = 1.25;
 const ARRIVAL_RADIUS_M = 7;
 const ARRIVAL_CONFIRM_READINGS = 2;
 const ARRIVAL_EXIT_BUFFER_M = 6;
-const MAX_USABLE_ACCURACY_M = 65;
+const MAX_USABLE_ACCURACY_M = 120;
 const GOOD_ACCURACY_M = 18;
 const MAX_WALKING_JUMP_MPS = 12;
 const OFF_ROUTE_DISTANCE_M = 22;
@@ -1131,6 +1131,7 @@ let cameraStartPromise = null;
 let orientationListening = false;
 let arrivalConfidence = 0;
 let arrivedPlaceId = null;
+let liveGpsFixAt = 0;
 
 function populateSelects() {
   const options = PLACES
@@ -1315,8 +1316,9 @@ function shortestPath(startId, destinationId) {
   return pathIds.map(placeById);
 }
 
-function nearestPlace(point) {
+function nearestPlace(point, selectableOnly = false) {
   return PLACES
+    .filter((place) => !selectableOnly || place.selectable !== false)
     .map((place) => ({ place, distance: distanceMeters(point, place) }))
     .sort((a, b) => a.distance - b.distance)[0]?.place || PLACES[0];
 }
@@ -1433,9 +1435,7 @@ function describeRoute(route) {
 }
 
 function recalculateRoute() {
-  const startPlace = gpsPreferred && currentPosition
-    ? nearestPlace(currentPosition)
-    : placeById(selectedStartId);
+  const startPlace = placeById(selectedStartId);
   destination = placeById(destinationSelect.value);
   activeRoute = shortestPath(startPlace.id, destination.id);
   routeText.textContent = describeRoute(activeRoute);
@@ -1459,7 +1459,7 @@ function stabilizedDisplayDistance(rawDistance, origin) {
   if (!gpsPreferred || !currentPosition || !Number.isFinite(lastDistance)) return rawDistance;
 
   const accuracy = origin && Number.isFinite(origin.accuracy) ? origin.accuracy : GOOD_ACCURACY_M;
-  const jitterAllowance = Math.min(Math.max(accuracy * 0.28, 2), 8);
+  const jitterAllowance = Math.min(Math.max(accuracy * 0.22, 1.5), 6);
 
   if (rawDistance <= lastDistance) return rawDistance;
   if (rawDistance <= lastDistance + jitterAllowance) return lastDistance;
@@ -1799,6 +1799,7 @@ function acceptGpsReading(position) {
     lastMovementAt = candidate.timestamp;
   }
 
+  liveGpsFixAt = Date.now();
   lastAcceptedGps = candidate;
   const blend = accuracy <= GOOD_ACCURACY_M ? 0.72 : accuracy <= 35 ? 0.55 : 0.38;
   currentPosition = {
@@ -1832,6 +1833,31 @@ function maybeRerouteFromGps() {
   }
 }
 
+function acceptPositionUpdate(position) {
+  gpsPreferred = true;
+  if (!acceptGpsReading(position)) return false;
+  if (!position.coords.accuracy || position.coords.accuracy <= GOOD_ACCURACY_M) {
+    accuracyText.textContent = position.coords.accuracy
+      ? `Accuracy ${Math.round(position.coords.accuracy)} m`
+      : "GPS active";
+  }
+  maybeRerouteFromGps();
+  updateGuide();
+  return true;
+}
+
+function requestCurrentGpsFix() {
+  if (!navigator.geolocation) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(acceptPositionUpdate(position)),
+      () => resolve(false),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
+    );
+  });
+}
+
 function startGpsWatch() {
   if (!navigator.geolocation) {
     accuracyText.textContent = "GPS unavailable";
@@ -1843,15 +1869,7 @@ function startGpsWatch() {
 
   watchId = navigator.geolocation.watchPosition(
     (position) => {
-      gpsPreferred = true;
-      if (!acceptGpsReading(position)) return;
-      if (!position.coords.accuracy || position.coords.accuracy <= GOOD_ACCURACY_M) {
-        accuracyText.textContent = position.coords.accuracy
-          ? `Accuracy ${Math.round(position.coords.accuracy)} m`
-          : "GPS active";
-      }
-      maybeRerouteFromGps();
-      updateGuide();
+      acceptPositionUpdate(position);
     },
     () => {
       accuracyText.textContent = "GPS blocked";
@@ -1885,9 +1903,10 @@ function updateGuide() {
   const instruction = turnInstruction(origin, activeRoute, relativeBearing);
   const landmark = landmarkInstruction(activeRoute, nextWaypoint);
 
-  const rawDisplayedDistance = gpsPreferred && currentPosition ? destinationDistance : distance;
+  const hasLiveGps = gpsPreferred && currentPosition;
+  const rawDisplayedDistance = destinationDistance;
   const displayedDistance = stabilizedDisplayDistance(rawDisplayedDistance, origin);
-  const displayedEtaSeconds = gpsPreferred && currentPosition
+  const displayedEtaSeconds = hasLiveGps
     ? displayedDistance / WALKING_SPEED_MPS
     : etaSeconds;
 
@@ -1906,7 +1925,8 @@ function updateGuide() {
     setStatus("You are not moving. Walk a few steps for better direction updates.", "warn");
   }
 
-  const hasArrived = updateArrivalState(destinationDistance, destination, origin);
+  const arrivalDistance = destinationDistance;
+  const hasArrived = hasLiveGps && updateArrivalState(arrivalDistance, destination, origin);
   setArrivalAr(hasArrived, destination);
 
   if (hasArrived) {
@@ -1914,6 +1934,8 @@ function updateGuide() {
     trendText.style.color = "var(--ok)";
     instructionText.textContent = `You've arrived at ${destination.name}.`;
     setStatus(`Arrived at ${destination.name}.`, "ok");
+  } else if (!hasLiveGps) {
+    setStatus("Waiting for live GPS. Allow location so distance can update while walking.", "warn");
   } else if (!(gpsPreferred && currentPosition && Date.now() - lastMovementAt > STANDING_STILL_MS)) {
     setStatus(`Follow the fastest path to ${destination.name}.`, "ok");
   }
@@ -1926,17 +1948,20 @@ async function startNavigation() {
   destination = placeById(destinationSelect.value);
   selectedStartId = startSelect.value;
   resetArrowState();
-  gpsPreferred = Boolean(currentPosition);
+  gpsPreferred = true;
 
-  if (startSelect.value === destinationSelect.value && !gpsPreferred) {
-    setStatus("Choose a different destination or use your live GPS position.", "warn");
+  if (startSelect.value === destinationSelect.value && !currentPosition) {
+    setStatus("Choose a different destination or wait for your live GPS position.", "warn");
     return;
   }
 
   warnIfInsecureContext();
+  startGpsWatch();
+  setStatus("Getting live GPS before starting navigation...", "warn");
+  await requestCurrentGpsFix();
   recalculateRoute();
   document.body.classList.add("navigating");
-  setStatus(`Calculating fastest path to ${destination.name}.`, "ok");
+  setStatus(currentPosition ? `Calculating fastest path to ${destination.name}.` : "Waiting for live GPS to update distance.", currentPosition ? "ok" : "warn");
   updateGuide();
 
   requestCompassPermission().then(() => {
@@ -1993,7 +2018,16 @@ useGpsBtn.addEventListener("click", async () => {
   warnIfInsecureContext();
   await startCamera();
   startGpsWatch();
-  setStatus("Using live GPS when permission is allowed.", "ok");
+  const hasFix = await requestCurrentGpsFix();
+  if (hasFix && currentPosition) {
+    const nearestStart = nearestPlace(currentPosition, true);
+    selectedStartId = nearestStart.id;
+    startSelect.value = nearestStart.id;
+    activeRoute = [];
+    setStatus(`Using GPS. Nearest starting point is ${nearestStart.name}.`, "ok");
+  } else {
+    setStatus("Using live GPS when permission is allowed.", "ok");
+  }
   updateGuide();
 });
 startSelect.addEventListener("change", useSelectedStart);
